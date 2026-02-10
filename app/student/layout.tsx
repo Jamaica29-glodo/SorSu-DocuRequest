@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, User, Bell, FileText, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
@@ -12,6 +12,7 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -23,6 +24,7 @@ export default function StudentLayout({
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    router.push("/login");
   };
 
   return (

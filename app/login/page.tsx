@@ -8,7 +8,7 @@ import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState(""); // Can be Email or Student ID
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -16,42 +16,51 @@ export default function LoginPage() {
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('🚀 Login function started');
     setLoading(true);
     setError(null);
 
-    const loginEmail = identifier;
-    console.log('📧 Using email:', loginEmail);
     try {
-      console.log('🔐 Attempting authentication...');
-
-      // 2. Authenticate with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
+        email: identifier,
         password: password,
       });
 
       if (authError) {
-        console.log('❌ Authentication failed:', authError);
         throw authError;
       }
 
-      console.log('✅ Authentication successful!');
-      console.log('👤 User email:', data.user?.email);
-      console.log('👤 User ID:', data.user?.id);
+      if (!data.user) {
+        throw new Error("Login failed - no user returned");
+      }
 
-      // MINIMAL: Just redirect immediately - no role checks, no profile lookups
-      console.log('🚀 IMMEDIATE REDIRECT TO STUDENT HOME');
-      
-      // Use window.location for guaranteed redirect
-      window.location.href = "/student/home";
-      
+      // Get user role from profile
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError) {
+        throw new Error("Failed to fetch user profile");
+      }
+
+      console.log(`[Login] User role: ${profile?.role}, redirecting...`);
+
+      // Redirect based on role using window.location for full page reload
+      if (profile?.role === "registrar") {
+        console.log(`[Login] Redirecting to /registrar/dashboard`);
+        window.location.href = "/registrar/dashboard";
+      } else {
+        console.log(`[Login] Redirecting to /student/home`);
+        window.location.href = "/student/home";
+      }
+
     } catch (err: unknown) {
-      console.log('❌ Login error:', err);
       setError(err instanceof Error ? err.message : "Login failed.");
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 transition-colors duration-300">
