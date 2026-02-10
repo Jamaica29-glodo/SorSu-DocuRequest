@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, User, Bell, FileText, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
@@ -43,8 +44,14 @@ export default function StudentLayout({
           {/* Logo */}
           <div className="flex items-center shrink-0 px-4 mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-sorsuMaroon rounded-lg flex items-center justify-center shadow-lg shadow-maroon-900/20">
-                <FileText className="w-5 h-5 text-white" />
+              <div className="relative w-10 h-10 shrink-0">
+                <Image
+                  src="/images/sorsu-logo.png"
+                  alt="SorSU Logo"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-900 transition-colors">SorSU</h2>
@@ -100,8 +107,14 @@ export default function StudentLayout({
                 <Menu className="h-5 w-5" />
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-sorsuMaroon rounded-lg flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-white" />
+                <div className="relative w-8 h-8 shrink-0">
+                  <Image
+                    src="/images/sorsu-logo.png"
+                    alt="SorSU Logo"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
                 </div>
                 <div>
                   <h1 className="text-sm font-bold text-gray-900">SorSU</h1>
@@ -120,8 +133,14 @@ export default function StudentLayout({
             {/* Mobile Menu Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-sorsuMaroon rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
+                <div className="relative w-9 h-9 shrink-0">
+                  <Image
+                    src="/images/sorsu-logo.png"
+                    alt="SorSU Logo"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">SorSU</h2>

@@ -45,17 +45,19 @@ export default function Home() {
         <section className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-32">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
-              <div className="mb-8 flex justify-center">
-                <div className="relative rounded-full px-3 py-1 text-sm leading-6 text-gray-600 ring-1 ring-gray-200 hover:ring-gray-200/20 bg-gray-50 transition-colors">
-                  Now accepting online requests.{" "}
-                  <Link href="/login" className="font-semibold text-sorsuMaroon hover:text-maroon-800 hover:underline transition-colors">
-                    <span className="absolute inset-0" aria-hidden="true" />
-                    Request now <span aria-hidden="true">&rarr;</span>
-                  </Link>
+              <div className="mb-6 flex justify-center">
+                <div className="relative w-32 h-32 sm:w-32 sm:h-32">
+                  <Image
+                    src="/images/sorsu-logo.png"
+                    alt="SorSU Logo"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
                 </div>
               </div>
               <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-6xl mb-6">
-                Request Academic Documents <span className="text-sorsuMaroon">Securely Online</span>
+                SorSu Document Request System
               </h1>
               <p className="text-lg leading-8 text-gray-600 mb-10">
                 Skip the long lines. Request your Transcript of Records, Diploma, and other certifications from anywhere, anytime. Secure, fast, and convenient.
