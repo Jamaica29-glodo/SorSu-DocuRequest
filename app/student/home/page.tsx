@@ -20,6 +20,7 @@ import {
   BookOpen,
   Shield,
   FileCheck,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -91,6 +92,10 @@ export default function StudentHomePage() {
   const [keyByRequestId, setKeyByRequestId] = useState<Record<string, string>>({});
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Validation modal state
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
 
   const fetchRequests = async () => {
     setError(null);
@@ -181,13 +186,20 @@ export default function StudentHomePage() {
       return;
     }
 
-    if (!newDocumentType.trim()) {
-      setError("Please select a document type.");
-      return;
-    }
+    // Validate all required fields
+    const missing: string[] = [];
+    if (!studentId.trim()) missing.push("Student ID Number");
+    if (!fullName.trim()) missing.push("Full Name");
+    if (!courseProgram.trim()) missing.push("Course Program");
+    if (!yearLevel.trim()) missing.push("Year Level / Year Graduated");
+    if (!email.trim()) missing.push("Email Address");
+    if (!contactNumber.trim()) missing.push("Contact Number");
+    if (!newDocumentType.trim()) missing.push("Document Type (select a document to request)");
+    if (!identityVerification) missing.push("Identity Verification File (Student ID, Government ID, or Payment Receipt)");
 
-    if (!identityVerification) {
-      setError("Please upload an identity verification document.");
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setShowValidationModal(true);
       return;
     }
 
@@ -195,7 +207,7 @@ export default function StudentHomePage() {
 
     try {
       // Upload identity verification file
-      const fileExt = identityVerification.name.split('.').pop();
+      const fileExt = identityVerification!.name.split('.').pop();
       const fileName = `${userId}/identity_verification_${Date.now()}.${fileExt}`;
       
       // Attempt to upload to 'identity-verifications', fallback to 'documents' if bucket not found
@@ -204,7 +216,7 @@ export default function StudentHomePage() {
       
       let { error: uploadError } = await supabase.storage
         .from(uploadBucket)
-        .upload(fileName, identityVerification);
+        .upload(fileName, identityVerification!);
 
       // If bucket not found, try the fallback bucket 'documents'
       const isBucketNotFoundError = uploadError && (
@@ -217,7 +229,7 @@ export default function StudentHomePage() {
         uploadBucket = 'documents';
         const fallbackResult = await supabase.storage
           .from(uploadBucket)
-          .upload(fileName, identityVerification);
+          .upload(fileName, identityVerification!);
         uploadError = fallbackResult.error;
       }
 
@@ -739,6 +751,70 @@ export default function StudentHomePage() {
             )}
           </div>
         </>
+      )}
+
+      {/* Validation Modal */}
+      {showValidationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowValidationModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-red-50 px-6 py-5 border-b border-red-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 shrink-0">
+                    <AlertCircle className="h-7 w-7 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Required Fields Missing</h3>
+                    <p className="text-sm text-red-600 mt-0.5">{missingFields.length} field{missingFields.length > 1 ? 's' : ''} need{missingFields.length === 1 ? 's' : ''} attention</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowValidationModal(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 max-h-[60vh] sm:max-h-[50vh] overflow-y-auto">
+              <p className="text-gray-600 mb-4 text-sm sm:text-base">
+                Please complete the following required fields before submitting your document request:
+              </p>
+
+              <ul className="space-y-3">
+                {missingFields.map((field, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start gap-3 text-sm text-gray-700 bg-red-50/80 rounded-xl p-4 border border-red-100"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-200 text-red-700 text-xs font-bold mt-0.5">
+                      {index + 1}
+                    </span>
+                    <span className="font-medium leading-relaxed">{field}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <button
+                onClick={() => setShowValidationModal(false)}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-sorsuMaroon px-6 py-3.5 font-bold text-white hover:bg-maroon-900 transition-all shadow-lg shadow-maroon-900/20 active:scale-[0.98]"
+              >
+                <CheckCircle className="h-5 w-5" />
+                Got it, I&apos;ll complete the form
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       </div>
     </div>
