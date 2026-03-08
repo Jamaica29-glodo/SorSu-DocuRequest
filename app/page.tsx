@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FileText, ShieldCheck, Clock, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -81,46 +81,69 @@ export default function Home() {
         <section className="bg-gray-50 py-24 sm:py-32 transition-colors">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-base font-semibold leading-7 text-sorsuMaroon uppercase tracking-wide">Faster & Safer</h2>
+              <h2 className="text-base font-semibold leading-7 text-sorsuMaroon uppercase tracking-wide">Mission, Vision & Values</h2>
               <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Modernizing Student Services
+                Sorsogon State University
               </p>
               <p className="mt-6 text-lg leading-8 text-gray-600">
-                Designed to make document processing efficient for students and the registrar.
+                Committed to excellence in education, research, and community service.
               </p>
             </div>
             <div className="mx-auto max-w-2xl lg:max-w-none">
-              <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                {/* Feature 1 */}
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                {/* Mission */}
                 <div className="flex flex-col rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-md">
-                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-maroon-50">
-                    <FileText className="h-6 w-6 text-sorsuMaroon" />
+                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-sorsuMaroon">
+                    <div className="h-6 w-6 bg-white rounded-full flex items-center justify-center">
+                      <span className="text-sorsuMaroon font-bold text-xs">M</span>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Online Requests</h3>
+                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Mission</h3>
                   <p className="mt-2 flex-auto text-base leading-7 text-gray-600">
-                    Submit requests for TOR, Diploma, and Good Moral without visiting the campus. Track status in real-time.
+                    To provide research-based quality education, innovations, and collaborative extension services for sustainable national and international development.
                   </p>
                 </div>
 
-                {/* Feature 2 */}
+                {/* Vision */}
                 <div className="flex flex-col rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-md">
-                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-maroon-50">
-                    <ShieldCheck className="h-6 w-6 text-sorsuMaroon" />
+                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-sorsuMaroon">
+                    <div className="h-6 w-6 bg-white rounded-full flex items-center justify-center">
+                      <span className="text-sorsuMaroon font-bold text-xs">V</span>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Secure Encryption</h3>
+                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Vision</h3>
                   <p className="mt-2 flex-auto text-base leading-7 text-gray-600">
-                    Documents are encrypted with AES-GCM before storage. Only you possess the key to decrypt and view them.
+                    A research university with a culture of excellence in developing globally competitive and values-oriented leaders and professionals.
                   </p>
                 </div>
 
-                {/* Feature 3 */}
+                {/* Core Values */}
                 <div className="flex flex-col rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-md">
-                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-maroon-50">
-                    <Clock className="h-6 w-6 text-sorsuMaroon" />
+                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-sorsuMaroon">
+                    <div className="h-6 w-6 bg-white rounded-full flex items-center justify-center">
+                      <span className="text-sorsuMaroon font-bold text-xs">HEART</span>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Real-time Updates</h3>
+                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Core Values</h3>
                   <p className="mt-2 flex-auto text-base leading-7 text-gray-600">
-                    Receive instant notifications via email and the portal when your documents are ready for download or pick-up.
+                    <strong>H</strong> - Humility<br/>
+                    <strong>E</strong> - Excellence<br/>
+                    <strong>A</strong> - Accountability<br/>
+                    <strong>R</strong> - Resiliency<br/>
+                    <strong>T</strong> - Trustworthiness
+                  </p>
+                </div>
+
+                {/* Quality Policy */}
+                <div className="flex flex-col rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-md">
+                  <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-sorsuMaroon">
+                    <div className="h-6 w-6 bg-white rounded-full flex items-center justify-center">
+                      <span className="text-sorsuMaroon font-bold text-xs">QP</span>
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold leading-8 text-gray-900">Quality Policy Statement</h3>
+                  <p className="mt-2 flex-auto text-base leading-7 text-gray-600">
+                    The Sorsogon State University commits to deliver quality education anchored on its vision and mission for the development and growth of the community. SorSU shall transform knowledge through research, instruction, extension, and production as it adheres to statutory and regulatory requirements for continual improvement of its systems.
                   </p>
                 </div>
               </div>

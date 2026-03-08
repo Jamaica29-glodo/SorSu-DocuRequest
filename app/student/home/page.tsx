@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -96,6 +96,41 @@ export default function StudentHomePage() {
   // Validation modal state
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showImageReminderModal, setShowImageReminderModal] = useState(false);
+  const [hasUploadedIdentityImage, setHasUploadedIdentityImage] = useState(false);
+
+  const checkIdentityImageStatus = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      // Check if user has any existing requests with identity verification
+      const { data: existingRequests, error: requestsError } = await supabase
+        .from("requests")
+        .select("verification_url")
+        .eq("user_id", userId)
+        .not("verification_url", "is", null)
+        .limit(1);
+
+      if (requestsError) {
+        console.warn('Error checking identity image status:', requestsError);
+        return;
+      }
+
+      const hasImage = existingRequests && existingRequests.length > 0;
+      setHasUploadedIdentityImage(hasImage);
+      
+      // Show reminder modal if no image uploaded
+      if (!hasImage) {
+        // Add a small delay to ensure page is fully loaded
+        setTimeout(() => {
+          setShowImageReminderModal(true);
+        }, 1000);
+      }
+    } catch (error) {
+      console.warn('Failed to check identity image status:', error);
+    }
+  }, [userId]);
 
   const fetchRequests = async () => {
     setError(null);
@@ -170,16 +205,23 @@ export default function StudentHomePage() {
       }
 
       await fetchRequests();
+      
+      // Check if user has uploaded identity verification image
+      await checkIdentityImageStatus();
+      
       setLoading(false);
     };
 
     void init();
-  }, [router]);
+  }, [router, checkIdentityImageStatus]);
 
   const handleCreateRequest = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
+
+    console.log('handleCreateRequest called');
+    console.log('identityVerification:', identityVerification);
 
     if (!userId) {
       setError("User not found.");
@@ -195,8 +237,18 @@ export default function StudentHomePage() {
     if (!email.trim()) missing.push("Email Address");
     if (!contactNumber.trim()) missing.push("Contact Number");
     if (!newDocumentType.trim()) missing.push("Document Type (select a document to request)");
-    if (!identityVerification) missing.push("Identity Verification File (Student ID, Government ID, or Payment Receipt)");
+    
+    console.log('missing fields:', missing);
+    console.log('identityVerification state:', !identityVerification);
+    
+    // Special handling for missing image file - show image modal if identity verification is missing
+    if (!identityVerification) {
+      console.log('Showing image modal - no identity verification file');
+      setShowImageModal(true);
+      return;
+    }
 
+    // Check other missing fields
     if (missing.length > 0) {
       setMissingFields(missing);
       setShowValidationModal(true);
@@ -599,10 +651,10 @@ export default function StudentHomePage() {
                     <input
                       type="file"
                       id="identity-file"
+                      name="identity-file"
                       className="hidden"
                       accept="image/*,.pdf"
                       onChange={(e) => setIdentityVerification(e.target.files?.[0] || null)}
-                      required
                     />
                     <label
                       htmlFor="identity-file"
@@ -812,6 +864,176 @@ export default function StudentHomePage() {
                 <CheckCircle className="h-5 w-5" />
                 Got it, I&apos;ll complete the form
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Upload Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowImageModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-amber-50 px-6 py-5 border-b border-amber-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 shrink-0">
+                    <Upload className="h-7 w-7 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Image Required</h3>
+                    <p className="text-sm text-amber-600 mt-0.5">Identity verification needed</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowImageModal(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <p className="text-gray-600 mb-4 text-sm sm:text-base">
+                You need to upload an identity verification document to complete your request. This helps us verify your identity and process your document request securely.
+              </p>
+
+              <div className="bg-amber-50/80 rounded-xl p-4 border border-amber-100 mb-4">
+                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  Accepted Documents:
+                </h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• Student ID (current/valid)</li>
+                  <li>• Government-issued ID (passport, driver&apos;s license, etc.)</li>
+                  <li>• Payment receipt (if applicable)</li>
+                </ul>
+              </div>
+
+              <div className="bg-blue-50/80 rounded-xl p-4 border border-blue-100">
+                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <FileCheck className="h-5 w-5 text-blue-600" />
+                  File Requirements:
+                </h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• Format: PDF, JPG, or PNG</li>
+                  <li>• Size: Maximum 10MB</li>
+                  <li>• Quality: Clear and readable</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowImageModal(false);
+                    document.getElementById('identity-file')?.click();
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sorsuMaroon px-6 py-3.5 font-bold text-white hover:bg-maroon-900 transition-all shadow-lg shadow-maroon-900/20 active:scale-[0.98]"
+                >
+                  <Upload className="h-5 w-5" />
+                  Upload Image Now
+                </button>
+                <button
+                  onClick={() => setShowImageModal(false)}
+                  className="px-6 py-3.5 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Upload Reminder Modal */}
+      {showImageReminderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowImageReminderModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-blue-50 px-6 py-5 border-b border-blue-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 shrink-0">
+                    <AlertCircle className="h-7 w-7 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Reminder: Upload Identity Verification</h3>
+                    <p className="text-sm text-blue-600 mt-0.5">Complete your profile for faster processing</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowImageReminderModal(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 max-h-[60vh] sm:max-h-[50vh] overflow-y-auto">
+              <p className="text-gray-600 mb-4 text-sm sm:text-base">
+                To ensure smooth processing of your document requests, please upload your identity verification document. This is a one-time requirement that helps us verify your identity and maintain security.
+              </p>
+
+              <div className="bg-blue-50/80 rounded-xl p-4 border border-blue-100 mb-4">
+                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-blue-600" />
+                  Why this is important:
+                </h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• Faster document request processing</li>
+                  <li>• Secure identity verification</li>
+                  <li>• One-time setup for all future requests</li>
+                </ul>
+              </div>
+
+              <div className="bg-amber-50/80 rounded-xl p-4 border border-amber-100">
+                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <FileCheck className="h-5 w-5 text-amber-600" />
+                  Accepted Documents:
+                </h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• Student ID (current/valid)</li>
+                  <li>• Government-issued ID (passport, driver&apos;s license, etc.)</li>
+                  <li>• Payment receipt (if applicable)</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowImageReminderModal(false);
+                    setShowCreateForm(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sorsuMaroon px-6 py-3.5 font-bold text-white hover:bg-maroon-900 transition-all shadow-lg shadow-maroon-900/20 active:scale-[0.98]"
+                >
+                  <Upload className="h-5 w-5" />
+                  Upload Now
+                </button>
+                <button
+                  onClick={() => setShowImageReminderModal(false)}
+                  className="px-6 py-3.5 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+                >
+                  Remind Later
+                </button>
+              </div>
             </div>
           </div>
         </div>
