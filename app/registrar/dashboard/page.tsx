@@ -764,10 +764,10 @@ export default function RegistrarDashboardPage() {
                   </button>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold border shadow-sm ${
-                      STATUS_COLORS[selectedRequest.status] || "bg-gray-100 text-gray-800 border-gray-200"
+                      selectedRequest ? STATUS_COLORS[selectedRequest.status] || "bg-gray-100 text-gray-800 border-gray-200" : "bg-gray-100 text-gray-800 border-gray-200"
                     }`}>
                       <StatusIcon className="h-3 w-3" />
-                      {selectedRequest.status}
+                      {selectedRequest?.status}
                     </span>
                   </div>
                 </div>
@@ -849,12 +849,11 @@ export default function RegistrarDashboardPage() {
                           <div className="flex flex-col items-end gap-3">
                             <span
                               className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold border shadow-lg ${
-                                STATUS_COLORS[selectedRequest.status] ||
-                                "bg-gray-100 text-gray-800 border-gray-200"
+                                selectedRequest ? STATUS_COLORS[selectedRequest.status] || "bg-gray-100 text-gray-800 border-gray-200" : "bg-gray-100 text-gray-800 border-gray-200"
                               }`}
                             >
                               <StatusIcon className="h-5 w-5" />
-                              {selectedRequest.status}
+                              {selectedRequest?.status}
                             </span>
                             {selectedRequest.encrypted_file_path && (
                               <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200">
