@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Home, User, Bell, FileText, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import LogoutConfirmationModal from "@/components/ui/LogoutConfirmationModal";
 
 export default function StudentLayout({
   children,
@@ -15,6 +16,7 @@ export default function StudentLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
 
   const navItems = [
     { href: "/student/home", label: "Home", icon: Home },
@@ -24,6 +26,10 @@ export default function StudentLayout({
   ];
 
   const handleSignOut = async () => {
+    setShowLogoutConfirmation(true);
+  };
+
+  const confirmSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -220,6 +226,13 @@ export default function StudentLayout({
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmationModal
+        isOpen={showLogoutConfirmation}
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowLogoutConfirmation(false)}
+      />
     </div>
   );
 }

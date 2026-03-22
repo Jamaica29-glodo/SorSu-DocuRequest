@@ -501,11 +501,17 @@ export default function StudentHomePage() {
                   placeholder="Search requests..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  autoComplete="one-time-code"
+                  autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck="false"
                   name="search-documents-field"
+                  data-form-type="other"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                 />
               </div>

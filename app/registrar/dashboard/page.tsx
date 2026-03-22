@@ -25,11 +25,17 @@ import {
   ChevronLeft,
   Calendar,
   ExternalLink,
+  Filter,
+  TrendingUp,
+  Users,
+  FileCheck,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
 import { supabase } from "@/app/lib/supabaseClient";
 import { encryptAesGcm, uint8ToBase64 } from "@/app/lib/aesGcm";
+import LogoutConfirmationModal from "@/components/ui/LogoutConfirmationModal";
 
 type RequestRow = {
   id: string;
@@ -53,11 +59,11 @@ type RequestRow = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  Pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  "On Process": "bg-blue-100 text-blue-800 border-blue-200",
-  "Ready for Pick-up": "bg-purple-100 text-purple-800 border-purple-200",
-  Completed: "bg-green-100 text-green-800 border-green-200",
-  Cancelled: "bg-maroon-100 text-maroon-800 border-maroon-200",
+  Pending: "bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-800 border-amber-200 shadow-sm",
+  "On Process": "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 border-blue-200 shadow-sm",
+  "Ready for Pick-up": "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-800 border-purple-200 shadow-sm",
+  Completed: "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 border-emerald-200 shadow-sm",
+  Cancelled: "bg-gradient-to-r from-rose-50 to-red-50 text-rose-800 border-rose-200 shadow-sm",
 };
 
 const STATUS_ICONS: Record<string, LucideIcon> = {
@@ -110,16 +116,36 @@ export default function RegistrarDashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [showStats, setShowStats] = useState(true);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
 
-  // Filter requests based on search term
+  // Filter requests based on search term and status
   const filteredRequests = useMemo(() => {
-    return requests.filter((r) =>
+    let filtered = requests.filter((r) =>
       r.document_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.profiles?.student_id.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [requests, searchTerm]);
+    
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(r => r.status === filterStatus);
+    }
+    
+    return filtered;
+  }, [requests, searchTerm, filterStatus]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = requests.length;
+    const pending = requests.filter(r => r.status === "Pending").length;
+    const processing = requests.filter(r => r.status === "On Process").length;
+    const completed = requests.filter(r => r.status === "Completed").length;
+    const ready = requests.filter(r => r.status === "Ready for Pick-up").length;
+    
+    return { total, pending, processing, completed, ready };
+  }, [requests]);
 
   const fetchRequests = async () => {
     setError(null);
@@ -225,6 +251,10 @@ export default function RegistrarDashboardPage() {
   }, [selectedRequest]);
 
   const handleSignOut = async () => {
+    setShowLogoutConfirmation(true);
+  };
+
+  const confirmSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -473,12 +503,12 @@ export default function RegistrarDashboardPage() {
   const StatusIcon = selectedRequest ? STATUS_ICONS[selectedRequest.status] || AlertCircle : AlertCircle;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col transition-colors duration-300">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 md:px-6 md:py-4 sticky top-0 z-30 transition-colors duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50/30 flex flex-col transition-all duration-500">
+      {/* Enhanced Header */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/60 px-4 py-3 md:px-6 md:py-4 sticky top-0 z-30 shadow-sm transition-all duration-300">
         <div className="flex items-center justify-between gap-3 max-w-[1600px] mx-auto w-full">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="relative h-8 w-8 md:h-10 md:w-10 overflow-hidden">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="relative h-10 w-10 md:h-12 md:w-12 overflow-hidden rounded-xl shadow-lg ring-2 ring-sorsuMaroon/10">
               <Image 
                 src="/images/sorsu-logo.png" 
                 alt="SorSU Logo" 
@@ -487,49 +517,161 @@ export default function RegistrarDashboardPage() {
                 priority
               />
             </div>
-            <h1 className="text-lg md:text-xl font-bold text-gray-900 line-clamp-1">Registrar Portal</h1>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-sorsuMaroon bg-clip-text text-transparent">Registrar Portal</h1>
+              <p className="text-xs text-gray-500 hidden md:block">Document Request Management System</p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 md:px-4 md:py-2 text-xs md:sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-sorsuMaroon transition-colors"
-          >
-            <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <Activity className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-700">System Active</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white/80 backdrop-blur px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-sorsuMaroon hover:border-sorsuMaroon/20 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden max-w-[1600px] mx-auto w-full flex flex-col md:flex-row">
+      <main className="flex-1 overflow-y-auto max-w-[1600px] mx-auto w-full">
         {loading ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-10">
-            <Loader2 className="h-8 w-8 animate-spin text-sorsuMaroon" />
-            <p className="mt-4 text-sm text-gray-600">Loading dashboard...</p>
+            <div className="relative">
+              <Loader2 className="h-12 w-12 animate-spin text-sorsuMaroon" />
+              <div className="absolute inset-0 h-12 w-12 animate-ping bg-sorsuMaroon/20 rounded-full"></div>
+            </div>
+            <p className="mt-6 text-sm font-medium text-gray-600 animate-pulse">Loading dashboard...</p>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-            {/* Left Column: Request List */}
-            <div className={`
-              ${selectedRequestId ? 'hidden md:flex' : 'flex'} 
-              w-full md:w-[350px] lg:w-[400px] flex-col overflow-hidden border-r border-gray-200 bg-white transition-colors duration-300
-            `}>
-              <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search requests or ID..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-2 text-sm text-gray-900 focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon outline-none transition-colors"
-                  />
+          <div className="flex flex-col h-full">
+            {/* Overview Statistics Section */}
+            {showStats && (
+              <div className="px-4 py-6 bg-gradient-to-r from-sorsuMaroon/5 to-transparent border-b border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-sorsuMaroon" />
+                    Overview Statistics
+                  </h2>
+                  <button
+                    onClick={() => setShowStats(!showStats)}
+                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Hide
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-gray-200/50 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Total Requests</p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-amber-200/50 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-amber-700">{stats.pending}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Pending</p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Clock className="h-5 w-5 text-amber-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-blue-200/50 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-blue-700">{stats.processing}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Processing</p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-purple-200/50 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-purple-700">{stats.ready}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Ready</p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                        <FileCheck className="h-5 w-5 text-purple-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-emerald-200/50 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-emerald-700">{stats.completed}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Completed</p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <CheckCircle className="h-5 w-5 text-emerald-600" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Student Information Requests Section */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Left Column: Request List */}
+              <div className={`
+                ${selectedRequestId ? 'hidden md:flex' : 'flex'} 
+                w-full md:w-[350px] lg:w-[400px] flex-col overflow-hidden border-r border-gray-200/60 bg-white/90 backdrop-blur transition-all duration-300
+              `}>
+              <div className="p-4 border-b border-gray-100/80 bg-gradient-to-r from-gray-50 to-white">
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search requests, names, or ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-400" />
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="flex-1 rounded-lg border border-gray-200/60 bg-white/80 backdrop-blur px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon/10 outline-none transition-all"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="Pending">Pending</option>
+                      <option value="On Process">On Process</option>
+                      <option value="Ready for Pick-up">Ready for Pick-up</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg font-medium">
+                      {filteredRequests.length} {filteredRequests.length === 1 ? 'request' : 'requests'}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-white transition-colors">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white to-gray-50/30 transition-colors pt-4">
                 {filteredRequests.length === 0 ? (
-                  <div className="text-center py-12 px-4 text-gray-500 text-sm">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                    No requests found.
+                  <div className="text-center py-8 px-4 text-gray-400">
+                    <div className="h-12 w-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <FileText className="h-6 w-6 opacity-30" />
+                    </div>
+                    <p className="text-xs font-medium text-gray-500">No requests found</p>
+                    <p className="text-xs text-gray-400 mt-1">Try adjusting your search or filters</p>
                   </div>
                 ) : (
                   filteredRequests.map((r) => {
@@ -545,45 +687,58 @@ export default function RegistrarDashboardPage() {
                           setDecryptionKey("");
                           setFile(null);
                         }}
-                        className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                        className={`w-full text-left p-3 rounded-xl border transition-all duration-300 group ${
                           isSelected
-                            ? "bg-maroon-50/50 border-sorsuMaroon ring-1 ring-sorsuMaroon/10"
-                            : "bg-white border-transparent hover:bg-gray-50 hover:border-gray-200"
+                            ? "bg-gradient-to-r from-sorsuMaroon/5 to-sorsuMaroon/10 border-sorsuMaroon/30 ring-2 ring-sorsuMaroon/20 shadow-lg scale-[1.02]"
+                            : "bg-white/80 backdrop-blur border-gray-200/50 hover:bg-gray-50/80 hover:border-gray-300/60 hover:shadow-md hover:scale-[1.01]"
                         }`}
                       >
-                        <div className="flex justify-between items-start mb-1">
-                          <div>
-                            <span className="font-bold text-gray-900 text-sm line-clamp-1">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-900 text-xs mb-1 line-clamp-1 group-hover:text-sorsuMaroon transition-colors">
                               {r.document_type}
-                            </span>
-                            <span className="text-xs text-gray-600 font-medium block">
+                            </h3>
+                            <p className="text-xs text-gray-600 font-medium block mb-1">
                               {r.profiles?.full_name || "N/A"}
-                            </span>
-                            <span className="text-[10px] text-gray-400 block font-mono">
-                              {r.profiles?.student_id || "No ID"}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">
+                                {r.profiles?.student_id || "No ID"}
+                              </span>
+                              {r.year_level && (
+                                <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-1.5 py-0.5 rounded">
+                                  {r.year_level}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {r.encrypted_file_path && (
+                              <div className="h-6 w-6 rounded-lg bg-emerald-100 flex items-center justify-center shadow-sm">
+                                <FileLock className="h-3 w-3 text-emerald-600" />
+                              </div>
+                            )}
+                            <span
+                              className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-bold border shadow-sm ${
+                                STATUS_COLORS[r.status] || "bg-gray-100 text-gray-800 border-gray-200"
+                              }`}
+                            >
+                              <ItemIcon className="h-2.5 w-2.5" />
+                              {r.status}
                             </span>
                           </div>
-                          {r.encrypted_file_path && (
-                            <FileLock className="h-3.5 w-3.5 text-sorsuMaroon shrink-0 mt-1" />
-                          )}
                         </div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
-                              STATUS_COLORS[r.status] || "bg-gray-100 text-gray-800 border-gray-200"
-                            }`}
-                          >
-                            <ItemIcon className="h-3 w-3" />
-                            {r.status}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-gray-500 flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(r.created_at).toLocaleDateString(undefined, { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric' 
-                          })}
+                        <div className="flex items-center justify-between text-[9px] text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-2.5 w-2.5" />
+                            {new Date(r.created_at).toLocaleDateString(undefined, { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </div>
+                          <div className="text-gray-400">
+                            {r.id.slice(0, 6).toUpperCase()}
+                          </div>
                         </div>
                       </button>
                     );
@@ -594,113 +749,169 @@ export default function RegistrarDashboardPage() {
 
             {/* Right Column: Details & Actions */}
             <div className={`
-              ${selectedRequestId ? 'flex' : 'hidden md:flex'} 
-              flex-1 flex-col overflow-y-auto bg-gray-50/30 transition-colors duration-300
-            `}>
+              flex-1 flex-col overflow-y-auto bg-gradient-to-b from-gray-50/30 to-white/50 transition-all duration-300 ${
+                selectedRequestId ? 'flex' : 'hidden md:flex'
+              }`}
+            >
               {selectedRequestId && (
-                <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center transition-colors">
+                <div className="md:hidden p-4 bg-white/90 backdrop-blur border-b border-gray-200/60 flex items-center justify-between sticky top-0 z-20 shadow-sm">
                   <button 
                     onClick={() => setSelectedRequestId("")}
-                    className="flex items-center gap-1 text-sm font-semibold text-sorsuMaroon"
+                    className="flex items-center gap-2 text-sm font-bold text-sorsuMaroon hover:text-sorsuMaroon/80 transition-colors"
                   >
-                    <ChevronLeft className="h-4 w-4" /> Back to list
+                    <ChevronLeft className="h-4 w-4" /> 
+                    <span>Back to Requests</span>
                   </button>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold border shadow-sm ${
+                      STATUS_COLORS[selectedRequest.status] || "bg-gray-100 text-gray-800 border-gray-200"
+                    }`}>
+                      <StatusIcon className="h-3 w-3" />
+                      {selectedRequest.status}
+                    </span>
+                  </div>
                 </div>
               )}
 
-              <div className="p-4 md:p-6 space-y-6">
+              <div className={`p-4 md:p-6 space-y-6 ${selectedRequestId ? '' : 'flex items-center justify-center h-full'}`}>
                 {error && (
-                  <div className="flex items-center gap-2 rounded-lg border border-maroon-200 bg-maroon-50 p-4 text-sm text-maroon-700 animate-in fade-in slide-in-from-top-2 transition-colors">
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    <span>{error}</span>
+                  <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 p-4 text-sm text-rose-800 animate-in fade-in slide-in-from-top-2 shadow-lg">
+                    <div className="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                      <AlertCircle className="h-4 w-4 text-rose-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">Error</p>
+                      <p className="text-xs text-rose-600 mt-1">{error}</p>
+                    </div>
                   </div>
                 )}
 
                 {successMessage && (
-                  <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 animate-in fade-in slide-in-from-top-2 transition-colors">
-                    <CheckCircle className="h-5 w-5 shrink-0" />
-                    <span>{successMessage}</span>
+                  <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 p-4 text-sm text-emerald-800 animate-in fade-in slide-in-from-top-2 shadow-lg">
+                    <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">Success</p>
+                      <p className="text-xs text-emerald-600 mt-1">{successMessage}</p>
+                    </div>
                   </div>
                 )}
 
                 {!selectedRequest ? (
-                  <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
-                    <div className="h-20 w-20 rounded-full bg-white flex items-center justify-center shadow-sm mb-4 border border-gray-100">
-                      <FileText className="h-10 w-10 opacity-20" />
+                  <div className="flex flex-col items-center justify-center text-gray-400 max-w-lg">
+                    <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center shadow-lg mb-6 border border-gray-200/50">
+                      <FileText className="h-12 w-12 opacity-30" />
                     </div>
-                    <p className="text-lg font-bold text-gray-900">Select a request</p>
-                    <p className="text-sm">Choose a document request from the list to manage it.</p>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Select a Request</h2>
+                    <p className="text-sm text-gray-500 text-center mb-6">Choose a document request from the list to view details and manage processing.</p>
+                    <div className="flex flex-col items-center gap-3 text-xs text-gray-400 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></div>
+                        <span>Pending requests need attention</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span>Completed requests are ready</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
+                        <span>Click any request to begin</span>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Header Info Card */}
-                    <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden transition-colors duration-300">
-                      <div className="bg-sorsuMaroon h-2 w-full"></div>
+                    {/* Enhanced Header Info Card */}
+                    <div className="rounded-2xl bg-white/95 backdrop-blur border border-gray-200/60 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+                      <div className="bg-gradient-to-r from-sorsuMaroon via-sorsuMaroon/90 to-sorsuMaroon/80 h-3 w-full"></div>
                       <div className="p-6">
                         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
-                          <div>
-                            <div className="flex items-center gap-2 text-xs font-bold text-sorsuMaroon uppercase tracking-wider mb-2">
-                              <FileText className="h-4 w-4" /> Request Details
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 text-xs font-bold text-sorsuMaroon uppercase tracking-wider mb-3">
+                              <FileText className="h-4 w-4" /> 
+                              <span>Request Details</span>
+                              <div className="h-px flex-1 bg-sorsuMaroon/20 mx-2"></div>
                             </div>
-                            <h2 className="text-2xl font-black text-gray-900 mb-1">
+                            <h2 className="text-2xl lg:text-3xl font-black text-gray-900 mb-2 leading-tight">
                               {selectedRequest.document_type}
                             </h2>
-                            <div className="flex items-center gap-2 text-sm text-gray-500 font-mono">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded">ID: {selectedRequest.id.slice(0, 8)}...</span>
-                              <span>•</span>
-                              <span>{new Date(selectedRequest.created_at).toLocaleString()}</span>
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                              <span className="bg-gray-100 px-3 py-1 rounded-lg font-mono text-xs font-semibold border border-gray-200">
+                                ID: {selectedRequest.id.slice(0, 8).toUpperCase()}...
+                              </span>
+                              <span className="flex items-center gap-1 text-xs">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(selectedRequest.created_at).toLocaleString()}
+                              </span>
                             </div>
                           </div>
-                          <span
-                            className={`inline-flex self-start items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-bold border shadow-sm ${
-                              STATUS_COLORS[selectedRequest.status] ||
-                              "bg-gray-100 text-gray-800 border-gray-200"
-                            }`}
-                          >
-                            <StatusIcon className="h-4 w-4" />
-                            {selectedRequest.status}
-                          </span>
+                          <div className="flex flex-col items-end gap-3">
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold border shadow-lg ${
+                                STATUS_COLORS[selectedRequest.status] ||
+                                "bg-gray-100 text-gray-800 border-gray-200"
+                              }`}
+                            >
+                              <StatusIcon className="h-5 w-5" />
+                              {selectedRequest.status}
+                            </span>
+                            {selectedRequest.encrypted_file_path && (
+                              <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200">
+                                <FileLock className="h-3 w-3" />
+                                <span className="font-medium">Secure Document</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Student Information Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4 bg-gray-50 rounded-xl border border-gray-100 transition-colors">
-                          <div className="space-y-1">
+                        {/* Enhanced Student Information Section */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gradient-to-br from-gray-50/50 to-white rounded-2xl border border-gray-100/80 transition-all duration-300">
+                          <div className="space-y-2 group">
                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <User className="h-3 w-3" /> Full Name
+                              <User className="h-3 w-3" /> 
+                              <span>Full Name</span>
                             </div>
-                            <p className="text-sm font-bold text-gray-900">
+                            <p className="text-sm font-bold text-gray-900 group-hover:text-sorsuMaroon transition-colors">
                               {selectedRequest.profiles?.full_name || "N/A"}
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-2 group">
                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <Mail className="h-3 w-3" /> Email
+                              <Mail className="h-3 w-3" /> 
+                              <span>Email Address</span>
                             </div>
-                            <p className="text-sm font-medium text-gray-600 truncate">
+                            <p className="text-sm font-medium text-gray-600 truncate group-hover:text-sorsuMaroon/80 transition-colors">
                               {selectedRequest.profiles?.email_address || "N/A"}
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-2 group">
                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <BookOpen className="h-3 w-3" /> Course & Year
+                              <BookOpen className="h-3 w-3" /> 
+                              <span>Course & Year</span>
                             </div>
-                            <p className="text-sm font-medium text-gray-600">
+                            <p className="text-sm font-medium text-gray-600 group-hover:text-sorsuMaroon/80 transition-colors">
                               {selectedRequest.profiles?.course_program || "N/A"} 
-                              {selectedRequest.year_level && ` (${selectedRequest.year_level})`}
+                              {selectedRequest.year_level && (
+                                <span className="ml-1 text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded text-xs">
+                                  {selectedRequest.year_level}
+                                </span>
+                              )}
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-2 group">
                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <Phone className="h-3 w-3" /> Contact
+                              <Phone className="h-3 w-3" /> 
+                              <span>Contact Number</span>
                             </div>
-                            <p className="text-sm font-medium text-gray-600">
+                            <p className="text-sm font-medium text-gray-600 group-hover:text-sorsuMaroon/80 transition-colors">
                               {selectedRequest.profiles?.contact_number || "N/A"}
                             </p>
                           </div>
                         </div>
 
                         {selectedRequest.verification_url && (
-                          <div className="mt-4">
+                          <div className="mt-6">
                             <button 
                               onClick={async () => {
                                 if (selectedRequest.verification_url) {
@@ -715,9 +926,11 @@ export default function RegistrarDashboardPage() {
                                   }
                                 }
                               }}
-                              className="inline-flex items-center gap-2 text-xs font-bold text-sorsuMaroon hover:underline bg-maroon-50 px-3 py-2 rounded-lg transition-colors"
+                              className="inline-flex items-center gap-2 text-sm font-bold text-sorsuMaroon hover:text-sorsuMaroon/80 bg-gradient-to-r from-sorsuMaroon/5 to-sorsuMaroon/10 hover:from-sorsuMaroon/10 hover:to-sorsuMaroon/20 px-4 py-3 rounded-xl transition-all duration-200 border border-sorsuMaroon/20 hover:border-sorsuMaroon/30 shadow-sm hover:shadow-md"
                             >
-                              <ExternalLink className="h-3.5 w-3.5" /> View Verification Link/Document
+                              <ExternalLink className="h-4 w-4" /> 
+                              <span>View Verification Document</span>
+                              <div className="h-2 w-2 rounded-full bg-sorsuMaroon animate-pulse"></div>
                             </button>
                           </div>
                         )}
@@ -725,39 +938,45 @@ export default function RegistrarDashboardPage() {
                     </div>
 
                     <div className="grid gap-6 lg:grid-cols-2">
-                      {/* Status Update Form */}
-                      <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 transition-colors">
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-6 flex items-center gap-2">
-                          <RefreshCw className="h-4 w-4 text-sorsuMaroon" /> Update Status
-                        </h3>
-                        <form onSubmit={handleUpdateStatus} className="space-y-4">
+                      {/* Enhanced Status Update Form */}
+                      <div className="rounded-2xl bg-white/95 backdrop-blur border border-gray-200/60 shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border border-blue-200">
+                            <RefreshCw className="h-5 w-5 text-blue-600" />
+                          </div>
                           <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                            <h3 className="text-base font-black text-gray-900 uppercase tracking-wide">Update Status</h3>
+                            <p className="text-xs text-gray-500">Change request processing status</p>
+                          </div>
+                        </div>
+                        <form onSubmit={handleUpdateStatus} className="space-y-5">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
                               New Status
                             </label>
                             <select
                               value={statusToSet}
                               onChange={(e) => setStatusToSet(e.target.value)}
-                              className="w-full rounded-lg border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm font-semibold focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon outline-none transition-colors"
+                              className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-4 py-3 text-sm font-semibold focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
                             >
-                              <option value="Pending">Pending</option>
-                              <option value="On Process">On Process</option>
-                              <option value="Ready for Pick-up">Ready for Pick-up</option>
-                              <option value="Completed">Completed</option>
-                              <option value="Cancelled">Cancelled</option>
+                              <option value="Pending">⏳ Pending</option>
+                              <option value="On Process">🔄 On Process</option>
+                              <option value="Ready for Pick-up">📦 Ready for Pick-up</option>
+                              <option value="Completed">✅ Completed</option>
+                              <option value="Cancelled">❌ Cancelled</option>
                             </select>
                           </div>
 
                           {statusToSet === "Cancelled" && (
-                            <div className="animate-in slide-in-from-top-2">
-                              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                            <div className="animate-in slide-in-from-top-2 duration-300">
+                              <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
                                 Reason for Cancellation
                               </label>
                               <textarea
                                 value={cancellationReason}
                                 onChange={(e) => setCancellationReason(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon outline-none min-h-[80px] transition-colors"
-                                placeholder="e.g., Missing requirements, please re-upload..."
+                                className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-4 py-3 text-sm focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none min-h-[100px] transition-all duration-200 shadow-sm resize-none"
+                                placeholder="e.g., Missing requirements, please re-upload documents..."
                               />
                             </div>
                           )}
@@ -765,60 +984,78 @@ export default function RegistrarDashboardPage() {
                           <button
                             type="submit"
                             disabled={updatingStatus}
-                            className="w-full rounded-lg bg-gray-900 px-4 py-3 text-sm font-black text-white hover:bg-black disabled:opacity-60 transition-all shadow-sm"
+                            className="w-full rounded-xl bg-gradient-to-r from-gray-900 to-black px-4 py-3.5 text-sm font-black text-white hover:from-gray-800 hover:to-gray-900 disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none flex items-center justify-center gap-2"
                           >
                             {updatingStatus ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin" /> Updating...
-                              </div>
-                            ) : "Update Request Status"}
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" /> 
+                                <span>Updating Status...</span>
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4" /> 
+                                <span>Update Request Status</span>
+                              </>
+                            )}
                           </button>
                         </form>
                       </div>
 
-                      {/* File Upload Form */}
-                      <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 transition-colors">
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-6 flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4 text-sorsuMaroon" /> Secure Upload
-                        </h3>
-                        <form onSubmit={handleUploadEncryptedDocument} className="space-y-4">
+                      {/* Enhanced File Upload Form */}
+                      <div className="rounded-2xl bg-white/95 backdrop-blur border border-gray-200/60 shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center border border-emerald-200">
+                            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                          </div>
                           <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                            <h3 className="text-base font-black text-gray-900 uppercase tracking-wide">Secure Upload</h3>
+                            <p className="text-xs text-gray-500">Upload encrypted document</p>
+                          </div>
+                        </div>
+                        <form onSubmit={handleUploadEncryptedDocument} className="space-y-5">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
                               Select Document
                             </label>
-                            <div className="relative">
+                            <div className="relative group">
                               <input
                                 type="file"
                                 onChange={handleFileChange}
-                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-maroon-50 file:text-sorsuMaroon hover:file:bg-maroon-100 border border-gray-200 rounded-lg cursor-pointer bg-gray-50/50 p-1 transition-colors"
+                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gradient-to-r file:from-sorsuMaroon/10 file:to-sorsuMaroon/5 file:text-sorsuMaroon hover:file:from-sorsuMaroon/20 hover:file:to-sorsuMaroon/10 border border-gray-200 rounded-xl cursor-pointer bg-gray-50/50 p-2 transition-all duration-200 hover:border-sorsuMaroon/30 file:transition-all"
                               />
+                              {file && (
+                                <div className="mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                </div>
+                              )}
                             </div>
                           </div>
 
                           <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
                               Encryption Key
                             </label>
                             <div className="flex gap-2">
                               <div className="relative flex-1">
-                                <Key className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                                <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                 <input
                                   type="text"
                                   value={decryptionKey}
                                   onChange={handleKeyChange}
-                                  className="w-full rounded-lg border border-gray-300 bg-white text-gray-900 pl-9 pr-3 py-2.5 text-sm font-mono focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon outline-none transition-colors"
-                                  placeholder="Generate key..."
+                                  className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 pl-10 pr-3 py-3 text-sm font-mono focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
+                                  placeholder="Generate or enter key..."
                                 />
                                 {isSavingKey && (
                                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                                    <Loader2 className="h-4 w-4 animate-spin text-sorsuMaroon" />
                                   </div>
                                 )}
                               </div>
                               <button
                                 type="button"
                                 onClick={handleGenerateKey}
-                                className="p-2.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
+                                className="p-3 rounded-xl bg-gradient-to-r from-sorsuMaroon/10 to-sorsuMaroon/5 hover:from-sorsuMaroon/20 hover:to-sorsuMaroon/10 border border-sorsuMaroon/20 hover:border-sorsuMaroon/30 text-sorsuMaroon transition-all duration-200 shadow-sm hover:shadow-md"
                                 title="Generate New Key"
                               >
                                 <RefreshCw className="h-4 w-4" />
@@ -826,7 +1063,7 @@ export default function RegistrarDashboardPage() {
                               <button
                                 type="button"
                                 onClick={handleCopyKey}
-                                className="p-2.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
+                                className="p-3 rounded-xl bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 border border-gray-200 hover:border-gray-300 text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
                                 title="Copy Key"
                               >
                                 <Copy className="h-4 w-4" />
@@ -835,32 +1072,34 @@ export default function RegistrarDashboardPage() {
                           </div>
 
                           <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
                               Post-Upload Status
                             </label>
                             <select
                               value={statusAfterUpload}
                               onChange={(e) => setStatusAfterUpload(e.target.value)}
-                              className="w-full rounded-lg border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm font-semibold focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon outline-none transition-colors"
+                              className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-4 py-3 text-sm font-semibold focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
                             >
-                              <option value="Completed">Completed</option>
-                              <option value="Ready for Pick-up">Ready for Pick-up</option>
-                              <option value="On Process">On Process</option>
+                              <option value="Completed">✅ Completed</option>
+                              <option value="Ready for Pick-up">📦 Ready for Pick-up</option>
+                              <option value="On Process">🔄 On Process</option>
                             </select>
                           </div>
 
                           <button
                             type="submit"
                             disabled={uploading}
-                            className="w-full flex items-center justify-center gap-2 rounded-lg bg-sorsuMaroon px-4 py-3 text-sm font-black text-white hover:bg-maroon-900 disabled:opacity-60 transition-all shadow-md shadow-sorsuMaroon/10"
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sorsuMaroon to-sorsuMaroon/90 hover:from-sorsuMaroon/90 hover:to-sorsuMaroon px-4 py-3.5 text-sm font-black text-white disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
                           >
                             {uploading ? (
                               <>
-                                <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+                                <Loader2 className="h-4 w-4 animate-spin" /> 
+                                <span>Encrypting & Uploading...</span>
                               </>
                             ) : (
                               <>
-                                <Upload className="h-4 w-4" /> Encrypt & Upload
+                                <Upload className="h-4 w-4" /> 
+                                <span>Encrypt & Upload Document</span>
                               </>
                             )}
                           </button>
@@ -868,22 +1107,39 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </div>
 
-                    {/* Secure File Info */}
+                    {/* Enhanced Secure File Info */}
                     {selectedRequest.encrypted_file_path && (
-                      <div className="p-4 bg-green-50 rounded-xl border border-green-100 flex items-center gap-4 animate-in fade-in zoom-in-95 transition-colors">
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-700 shadow-inner">
-                          <FileLock className="h-6 w-6" />
+                      <div className="p-5 bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 rounded-2xl border border-emerald-200/60 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500 shadow-lg">
+                        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center text-emerald-700 shadow-inner border border-emerald-200">
+                          <FileLock className="h-7 w-7" />
                         </div>
-                        <div>
-                          <p className="text-sm font-black text-green-900">
-                            Secure Document Uploaded
+                        <div className="flex-1">
+                          <p className="text-base font-black text-emerald-900">
+                            📄 Secure Document Uploaded
                           </p>
-                          <p className="text-xs text-green-700 font-medium">
-                            {selectedRequest.original_file_name} • {new Date(selectedRequest.created_at).toLocaleDateString()}
-                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs text-emerald-700 font-medium">
+                              {selectedRequest.original_file_name}
+                            </p>
+                            <span className="text-emerald-400">•</span>
+                            <p className="text-xs text-emerald-600">
+                              {new Date(selectedRequest.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {selectedRequest.decryption_key && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-xs text-emerald-600 font-medium">Key Available:</span>
+                              <span className="text-xs font-mono bg-emerald-100 px-2 py-1 rounded text-emerald-800">
+                                {selectedRequest.decryption_key.slice(0, 8)}***
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="ml-auto">
-                          <ShieldCheck className="h-5 w-5 text-green-500" />
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                          </div>
+                          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
                         </div>
                       </div>
                     )}
@@ -892,8 +1148,16 @@ export default function RegistrarDashboardPage() {
               </div>
             </div>
           </div>
+          </div>
         )}
       </main>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmationModal
+        isOpen={showLogoutConfirmation}
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowLogoutConfirmation(false)}
+      />
     </div>
   );
 }

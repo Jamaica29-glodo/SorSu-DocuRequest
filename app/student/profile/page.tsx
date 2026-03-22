@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Hash, BookOpen, Phone, LogOut, Loader2, User, Building } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
+import LogoutConfirmationModal from "@/components/ui/LogoutConfirmationModal";
 
 type Profile = {
   id: string;
@@ -20,6 +21,7 @@ export default function StudentProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -51,6 +53,10 @@ export default function StudentProfilePage() {
   }, [router]);
 
   const handleSignOut = async () => {
+    setShowLogoutConfirmation(true);
+  };
+
+  const confirmSignOut = async () => {
     setSigningOut(true);
     try {
       await supabase.auth.signOut();
@@ -213,6 +219,13 @@ export default function StudentProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmationModal
+        isOpen={showLogoutConfirmation}
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowLogoutConfirmation(false)}
+      />
     </div>
   );
 }
