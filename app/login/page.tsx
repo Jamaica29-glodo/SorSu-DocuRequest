@@ -47,10 +47,7 @@ export default function LoginPage() {
       console.log(`[Login] User role: ${profile?.role}, redirecting...`);
 
       // Redirect based on role using window.location for full page reload
-      if (profile?.role === "admin") {
-        console.log(`[Login] Redirecting to /admin/dashboard`);
-        window.location.href = "/admin/dashboard";
-      } else if (profile?.role === "registrar") {
+      if (profile?.role === "admin" || profile?.role === "registrar") {
         console.log(`[Login] Redirecting to /registrar/dashboard`);
         window.location.href = "/registrar/dashboard";
       } else {

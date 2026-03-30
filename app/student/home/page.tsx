@@ -298,7 +298,7 @@ export default function StudentHomePage() {
         document_type: newDocumentType.trim(),
         status: "Pending",
         year_level: yearLevel,
-        verification_url: `${uploadBucket}/${fileName}`,
+        verification_url: `/api/identity-verifications/${fileName}`,
       });
 
       if (insertError) {

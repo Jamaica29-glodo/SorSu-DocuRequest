@@ -106,7 +106,7 @@ Registrar's Office
     );
 
   } catch (error) {
-    console.error("Error sending admin email:", error);
+    console.error("Error sending registrar email:", error);
     return NextResponse.json(
       { error: "Failed to send email notification" },
       { status: 500 }

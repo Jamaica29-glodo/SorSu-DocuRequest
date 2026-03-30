@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   LogOut,
   Search,
@@ -30,6 +30,16 @@ import {
   Users,
   FileCheck,
   Activity,
+  UserCheck,
+  UserX,
+  Ban,
+  Eye,
+  Shield,
+  BarChart3,
+  Plus,
+  Edit2,
+  Trash2,
+  EyeOff,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,6 +66,45 @@ type RequestRow = {
     course_program: string | null;
     contact_number: string | null;
   } | null;
+};
+
+type StudentProfile = {
+  id: string;
+  student_id: string;
+  full_name: string;
+  email_address: string;
+  course_program: string;
+  contact_number: string;
+  role: string;
+  is_approved: boolean;
+  is_banned: boolean;
+  approval_reason: string | null;
+  ban_reason: string | null;
+  approved_at: string | null;
+  banned_at: string | null;
+  created_at: string;
+};
+
+type StudentID = {
+  id: string;
+  student_id: string;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  notes: string | null;
+};
+
+type AdminStats = {
+  total_students: number;
+  pending_approvals: number;
+  approved_students: number;
+  banned_students: number;
+  total_requests: number;
+  recent_registrations: number;
+  total_student_ids: number;
+  active_student_ids: number;
+  inactive_student_ids: number;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -119,6 +168,86 @@ export default function RegistrarDashboardPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showStats, setShowStats] = useState(true);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  
+  // Admin functionality states
+  const [activeTab, setActiveTab] = useState<"requests" | "students" | "student-ids" | "analytics">("requests");
+  const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [studentIDs, setStudentIDs] = useState<StudentID[]>([]);
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+  const [registrarName, setRegistrarName] = useState<string>("");
+  
+  // Student management states
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [studentStatusFilter, setStudentStatusFilter] = useState<"all" | "pending" | "approved" | "banned">("all");
+  const [studentCurrentPage, setStudentCurrentPage] = useState(1);
+  const [studentItemsPerPage] = useState(10);
+  
+  // Modal states for student management
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  
+  // Student ID management states
+  const [studentIDSearchTerm, setStudentIDSearchTerm] = useState("");
+  const [studentIDStatusFilter, setStudentIDStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [studentIDCurrentPage, setStudentIDCurrentPage] = useState(1);
+  const [studentIDItemsPerPage] = useState(10);
+  
+  // Modal states for student ID management
+  const [showAddIDModal, setShowAddIDModal] = useState(false);
+  const [showEditIDModal, setShowEditIDModal] = useState(false);
+  const [showDeleteIDModal, setShowDeleteIDModal] = useState(false);
+  const [showViewIDModal, setShowViewIDModal] = useState(false);
+  const [selectedStudentID, setSelectedStudentID] = useState<StudentID | null>(null);
+  const [idActionLoading, setIdActionLoading] = useState(false);
+  
+  // Form states for student ID
+  const [idFormData, setIdFormData] = useState({
+    student_id: "",
+    is_active: true,
+    notes: "",
+  });
+
+  // State for request selection transition
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [previousRequestId, setPreviousRequestId] = useState("");
+
+  // Handle request selection with transition
+  const handleRequestSelection = useCallback((requestId: string) => {
+    if (requestId === selectedRequestId) return;
+    
+    setIsTransitioning(true);
+    setPreviousRequestId(selectedRequestId);
+    
+    // Small delay for transition effect
+    setTimeout(() => {
+      setSelectedRequestId(requestId);
+      setIsTransitioning(false);
+      setPreviousRequestId("");
+    }, 150);
+  }, [selectedRequestId]);
+
+  // Helper function to get correct verification URL
+  const getVerificationUrl = (verificationUrl: string | null) => {
+    if (!verificationUrl) return null;
+    
+    // If it's already an API route, return as is
+    if (verificationUrl.startsWith('/api/identity-verifications/')) {
+      return verificationUrl;
+    }
+    
+    // If it's an old storage path, convert to API route
+    if (verificationUrl.includes('identity-verifications/') || verificationUrl.includes('documents/')) {
+      const path = verificationUrl.replace(/^(identity-verifications|documents)\//, '');
+      return `/api/identity-verifications/${path}`;
+    }
+    
+    // Default: treat as API route
+    return verificationUrl;
+  };
 
   // Filter requests based on search term and status
   const filteredRequests = useMemo(() => {
@@ -146,6 +275,54 @@ export default function RegistrarDashboardPage() {
     
     return { total, pending, processing, completed, ready };
   }, [requests]);
+  
+  // Filter students based on search and status
+  const filteredStudents = useMemo(() => {
+    return students.filter((student) => {
+      const matchesSearch = 
+        student.full_name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+        student.student_id.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+        student.email_address.toLowerCase().includes(studentSearchTerm.toLowerCase());
+
+      const matchesStatus = 
+        studentStatusFilter === "all" ||
+        (studentStatusFilter === "pending" && !student.is_approved) ||
+        (studentStatusFilter === "approved" && student.is_approved && !student.is_banned) ||
+        (studentStatusFilter === "banned" && student.is_banned);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [students, studentSearchTerm, studentStatusFilter]);
+  
+  // Student pagination
+  const studentTotalPages = Math.ceil(filteredStudents.length / studentItemsPerPage);
+  const paginatedStudents = filteredStudents.slice(
+    (studentCurrentPage - 1) * studentItemsPerPage,
+    studentCurrentPage * studentItemsPerPage
+  );
+  
+  // Filter student IDs based on search and status
+  const filteredStudentIDs = useMemo(() => {
+    return studentIDs.filter((studentID) => {
+      const matchesSearch = 
+        studentID.student_id.toLowerCase().includes(studentIDSearchTerm.toLowerCase()) ||
+        (studentID.notes && studentID.notes.toLowerCase().includes(studentIDSearchTerm.toLowerCase()));
+
+      const matchesStatus = 
+        studentIDStatusFilter === "all" ||
+        (studentIDStatusFilter === "active" && studentID.is_active) ||
+        (studentIDStatusFilter === "inactive" && !studentID.is_active);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [studentIDs, studentIDSearchTerm, studentIDStatusFilter]);
+  
+  // Student ID pagination
+  const studentIDTotalPages = Math.ceil(filteredStudentIDs.length / studentIDItemsPerPage);
+  const paginatedStudentIDs = filteredStudentIDs.slice(
+    (studentIDCurrentPage - 1) * studentIDItemsPerPage,
+    studentIDCurrentPage * studentIDItemsPerPage
+  );
 
   const fetchRequests = async () => {
     setError(null);
@@ -195,6 +372,80 @@ export default function RegistrarDashboardPage() {
 
     setRequests((transformedData as RequestRow[]) ?? []);
   };
+  
+  const fetchStudents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "student")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setStudents(data as StudentProfile[]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch students");
+    }
+  };
+  
+  const fetchStudentIDs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("student_ids")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setStudentIDs(data as StudentID[]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch student IDs");
+    }
+  };
+  
+  const fetchAdminStats = async () => {
+    try {
+      // Get student statistics
+      const { data: studentsData, error: studentsError } = await supabase
+        .from("profiles")
+        .select("is_approved, is_banned, created_at")
+        .eq("role", "student");
+
+      if (studentsError) throw studentsError;
+
+      // Get request statistics
+      const { count: totalRequests, error: requestsError } = await supabase
+        .from("requests")
+        .select("*", { count: "exact", head: true });
+
+      if (requestsError) throw requestsError;
+      
+      // Get student ID statistics
+      const { data: studentIDsData, error: studentIDsError } = await supabase
+        .from("student_ids")
+        .select("is_active");
+        
+      if (studentIDsError) throw studentIDsError;
+
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const stats: AdminStats = {
+        total_students: studentsData?.length || 0,
+        pending_approvals: studentsData?.filter(s => !s.is_approved).length || 0,
+        approved_students: studentsData?.filter(s => s.is_approved && !s.is_banned).length || 0,
+        banned_students: studentsData?.filter(s => s.is_banned).length || 0,
+        total_requests: totalRequests || 0,
+        recent_registrations: studentsData?.filter(s => new Date(s.created_at) > thirtyDaysAgo).length || 0,
+        total_student_ids: studentIDsData?.length || 0,
+        active_student_ids: studentIDsData?.filter(id => id.is_active).length || 0,
+        inactive_student_ids: studentIDsData?.filter(id => !id.is_active).length || 0,
+      };
+
+      setAdminStats(stats);
+    } catch (err: unknown) {
+      console.error("Failed to fetch admin stats:", err);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -219,7 +470,7 @@ export default function RegistrarDashboardPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, full_name")
         .eq("id", user.id)
         .single();
 
@@ -229,12 +480,17 @@ export default function RegistrarDashboardPage() {
         return;
       }
 
-      if (profile?.role !== "registrar") {
-        router.push("/student/home");
+      if (profile?.role !== "registrar" && profile?.role !== "admin") {
+        router.push("/login");
         return;
       }
+      
+      setRegistrarName(profile.full_name || "Registrar");
 
       await fetchRequests();
+      await fetchStudents();
+      await fetchStudentIDs();
+      await fetchAdminStats();
       setLoading(false);
     };
 
@@ -500,6 +756,239 @@ export default function RegistrarDashboardPage() {
     }
   };
 
+  // Student management handlers
+  const handleApproveStudent = async () => {
+    if (!selectedStudent) return;
+    
+    setActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          is_approved: true,
+          approval_reason: actionReason.trim() || null,
+          approved_at: new Date().toISOString(),
+        })
+        .eq("id", selectedStudent.id);
+
+      if (error) throw error;
+
+      setSuccessMessage("Student approved successfully.");
+      setShowApprovalModal(false);
+      setSelectedStudent(null);
+      setActionReason("");
+      
+      await fetchStudents();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to approve student.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBanStudent = async () => {
+    if (!selectedStudent) return;
+    
+    if (!actionReason.trim()) {
+      setError("Ban reason is required.");
+      return;
+    }
+    
+    setActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          is_banned: true,
+          is_approved: false,
+          ban_reason: actionReason.trim(),
+          banned_at: new Date().toISOString(),
+        })
+        .eq("id", selectedStudent.id);
+
+      if (error) throw error;
+
+      setSuccessMessage("Student banned successfully.");
+      setShowBanModal(false);
+      setSelectedStudent(null);
+      setActionReason("");
+      
+      await fetchStudents();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to ban student.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnbanStudent = async (studentId: string) => {
+    if (!confirm("Are you sure you want to unban this student?")) return;
+    
+    setActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          is_banned: false,
+          ban_reason: null,
+          banned_at: null,
+        })
+        .eq("id", studentId);
+
+      if (error) throw error;
+
+      setSuccessMessage("Student unbanned successfully.");
+      
+      await fetchStudents();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to unban student.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Student ID management handlers
+  const handleAddStudentID = async () => {
+    if (!idFormData.student_id.trim()) {
+      setError("Student ID is required.");
+      return;
+    }
+    
+    setIdActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("student_ids")
+        .insert({
+          student_id: idFormData.student_id.trim(),
+          is_active: idFormData.is_active,
+          notes: idFormData.notes.trim() || null,
+        });
+
+      if (error) throw error;
+
+      setSuccessMessage("Student ID added successfully.");
+      setShowAddIDModal(false);
+      setIdFormData({
+        student_id: "",
+        is_active: true,
+        notes: "",
+      });
+      
+      await fetchStudentIDs();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to add student ID.");
+    } finally {
+      setIdActionLoading(false);
+    }
+  };
+
+  const handleEditStudentID = async () => {
+    if (!selectedStudentID || !idFormData.student_id.trim()) {
+      setError("Student ID is required.");
+      return;
+    }
+    
+    setIdActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("student_ids")
+        .update({
+          student_id: idFormData.student_id.trim(),
+          is_active: idFormData.is_active,
+          notes: idFormData.notes.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedStudentID.id);
+
+      if (error) throw error;
+
+      setSuccessMessage("Student ID updated successfully.");
+      setShowEditIDModal(false);
+      setSelectedStudentID(null);
+      setIdFormData({
+        student_id: "",
+        is_active: true,
+        notes: "",
+      });
+      
+      await fetchStudentIDs();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update student ID.");
+    } finally {
+      setIdActionLoading(false);
+    }
+  };
+
+  const handleDeleteStudentID = async () => {
+    if (!selectedStudentID) return;
+    
+    if (!confirm("Are you sure you want to delete this student ID? This action cannot be undone.")) return;
+    
+    setIdActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("student_ids")
+        .delete()
+        .eq("id", selectedStudentID.id);
+
+      if (error) throw error;
+
+      setSuccessMessage("Student ID deleted successfully.");
+      setShowDeleteIDModal(false);
+      setSelectedStudentID(null);
+      
+      await fetchStudentIDs();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete student ID.");
+    } finally {
+      setIdActionLoading(false);
+    }
+  };
+
+  const handleToggleStudentIDStatus = async (studentID: StudentID) => {
+    setIdActionLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase
+        .from("student_ids")
+        .update({
+          is_active: !studentID.is_active,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", studentID.id);
+
+      if (error) throw error;
+
+      setSuccessMessage(`Student ID ${studentID.is_active ? 'deactivated' : 'activated'} successfully.`);
+      
+      await fetchStudentIDs();
+      await fetchAdminStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update student ID status.");
+    } finally {
+      setIdActionLoading(false);
+    }
+  };
+
   const StatusIcon = selectedRequest ? STATUS_ICONS[selectedRequest.status] || AlertCircle : AlertCircle;
 
   return (
@@ -519,13 +1008,13 @@ export default function RegistrarDashboardPage() {
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-sorsuMaroon bg-clip-text text-transparent">Registrar Portal</h1>
-              <p className="text-xs text-gray-500 hidden md:block">Document Request Management System</p>
+              <p className="text-xs text-gray-500 hidden md:block">Document & Student Management System</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-              <Activity className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-700">System Active</span>
+              <Shield className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-700">{registrarName}</span>
             </div>
             <button
               type="button"
@@ -537,6 +1026,62 @@ export default function RegistrarDashboardPage() {
           </div>
         </div>
       </header>
+      
+      {/* Navigation Tabs */}
+      <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/60 px-4 py-2 sticky top-16 z-20 shadow-sm">
+        <div className="max-w-[1600px] mx-auto w-full">
+          <nav className="flex gap-1">
+            <button
+              onClick={() => setActiveTab("requests")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                activeTab === "requests"
+                  ? "bg-sorsuMaroon text-white shadow-md"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Document Requests</span>
+              <span className="sm:hidden">Requests</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("students")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                activeTab === "students"
+                  ? "bg-sorsuMaroon text-white shadow-md"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Student Management</span>
+              <span className="sm:hidden">Students</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("student-ids")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                activeTab === "student-ids"
+                  ? "bg-sorsuMaroon text-white shadow-md"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Student IDs</span>
+              <span className="sm:hidden">IDs</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                activeTab === "analytics"
+                  ? "bg-sorsuMaroon text-white shadow-md"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Stats</span>
+            </button>
+          </nav>
+        </div>
+      </div>
 
       <main className="flex-1 overflow-y-auto max-w-[1600px] mx-auto w-full">
         {loading ? (
@@ -564,7 +1109,8 @@ export default function RegistrarDashboardPage() {
                     Hide
                   </button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-8 gap-3">
+                  {/* Document Request Stats */}
                   <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-gray-200/50 hover:shadow-md transition-all duration-200">
                     <div className="flex items-center justify-between">
                       <div>
@@ -620,536 +1166,1508 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Admin Stats */}
+                  {adminStats && (
+                    <>
+                      <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-indigo-200/50 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-2xl font-bold text-indigo-700">{adminStats.total_students}</p>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Total Students</p>
+                          </div>
+                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                            <Users className="h-5 w-5 text-indigo-600" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-yellow-200/50 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-2xl font-bold text-yellow-700">{adminStats.pending_approvals}</p>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Pending Approval</p>
+                          </div>
+                          <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                            <AlertCircle className="h-5 w-5 text-yellow-600" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-teal-200/50 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-2xl font-bold text-teal-700">{adminStats.total_student_ids}</p>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Student IDs</p>
+                          </div>
+                          <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center">
+                            <Shield className="h-5 w-5 text-teal-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
             
-            {/* Student Information Requests Section */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Left Column: Request List */}
-              <div className={`
-                ${selectedRequestId ? 'hidden md:flex' : 'flex'} 
-                w-full md:w-[350px] lg:w-[400px] flex-col overflow-hidden border-r border-gray-200/60 bg-white/90 backdrop-blur transition-all duration-300
-              `}>
-              <div className="p-4 border-b border-gray-100/80 bg-gradient-to-r from-gray-50 to-white">
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search requests, names, or ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-gray-400" />
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="flex-1 rounded-lg border border-gray-200/60 bg-white/80 backdrop-blur px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-sorsuMaroon focus:ring-1 focus:ring-sorsuMaroon/10 outline-none transition-all"
-                    >
-                      <option value="all">All Status</option>
-                      <option value="Pending">Pending</option>
-                      <option value="On Process">On Process</option>
-                      <option value="Ready for Pick-up">Ready for Pick-up</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                    <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg font-medium">
-                      {filteredRequests.length} {filteredRequests.length === 1 ? 'request' : 'requests'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white to-gray-50/30 transition-colors pt-4">
-                {filteredRequests.length === 0 ? (
-                  <div className="text-center py-8 px-4 text-gray-400">
-                    <div className="h-12 w-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <FileText className="h-6 w-6 opacity-30" />
-                    </div>
-                    <p className="text-xs font-medium text-gray-500">No requests found</p>
-                    <p className="text-xs text-gray-400 mt-1">Try adjusting your search or filters</p>
-                  </div>
-                ) : (
-                  filteredRequests.map((r) => {
-                    const ItemIcon = STATUS_ICONS[r.status] || AlertCircle;
-                    const isSelected = selectedRequestId === r.id;
-                    return (
-                      <button
-                        key={r.id}
-                        onClick={() => {
-                          setSelectedRequestId(r.id);
-                          setError(null);
-                          setSuccessMessage(null);
-                          setDecryptionKey("");
-                          setFile(null);
-                        }}
-                        className={`w-full text-left p-3 rounded-xl border transition-all duration-300 group ${
-                          isSelected
-                            ? "bg-gradient-to-r from-sorsuMaroon/5 to-sorsuMaroon/10 border-sorsuMaroon/30 ring-2 ring-sorsuMaroon/20 shadow-lg scale-[1.02]"
-                            : "bg-white/80 backdrop-blur border-gray-200/50 hover:bg-gray-50/80 hover:border-gray-300/60 hover:shadow-md hover:scale-[1.01]"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-gray-900 text-xs mb-1 line-clamp-1 group-hover:text-sorsuMaroon transition-colors">
-                              {r.document_type}
-                            </h3>
-                            <p className="text-xs text-gray-600 font-medium block mb-1">
-                              {r.profiles?.full_name || "N/A"}
-                            </p>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">
-                                {r.profiles?.student_id || "No ID"}
-                              </span>
-                              {r.year_level && (
-                                <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-1.5 py-0.5 rounded">
-                                  {r.year_level}
-                                </span>
-                              )}
-                            </div>
+            {/* Tab Content */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === "requests" && (
+                <div className="p-6 h-full">
+                  <div className="bg-white rounded-lg shadow h-full">
+                    {/* Header with filters */}
+                    <div className="p-6 border-b border-gray-200">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <h2 className="text-lg font-semibold text-gray-900">Student Document Requests</h2>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Search requests..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent w-full sm:w-64"
+                            />
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            {r.encrypted_file_path && (
-                              <div className="h-6 w-6 rounded-lg bg-emerald-100 flex items-center justify-center shadow-sm">
-                                <FileLock className="h-3 w-3 text-emerald-600" />
+                          <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
+                          >
+                            <option value="all">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="On Process">On Process</option>
+                            <option value="Ready for Pick-up">Ready for Pick-up</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Main Content - Split Layout */}
+                    <div className="flex flex-col lg:flex-row h-[calc(100vh-280px)]">
+                      {/* Left Side - Request Details Panel (Expanded) */}
+                      <div className="flex-1 lg:border-r border-gray-200">
+                        <div className="relative h-full">
+                          {selectedRequest && !isTransitioning ? (
+                            <div className="p-6 h-full overflow-y-auto animate-fadeIn">
+                              <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900">Request Details</h3>
+                                <button
+                                  onClick={() => setSelectedRequestId("")}
+                                  className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                >
+                                  <XCircle className="h-5 w-5" />
+                                </button>
                               </div>
-                            )}
-                            <span
-                              className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-bold border shadow-sm ${
-                                STATUS_COLORS[r.status] || "bg-gray-100 text-gray-800 border-gray-200"
-                              }`}
-                            >
-                              <ItemIcon className="h-2.5 w-2.5" />
-                              {r.status}
-                            </span>
-                          </div>
+                              
+                              {/* Student Information Card */}
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 mb-6 transform transition-all duration-300 ease-in-out hover:shadow-lg">
+                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                  <User className="h-5 w-5 text-blue-600" />
+                                  Student Information
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Full Name</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.profiles?.full_name || "N/A"}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Student ID</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.profiles?.student_id || "N/A"}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Email Address</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.profiles?.email_address || "N/A"}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Contact Number</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.profiles?.contact_number || "N/A"}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 md:col-span-2 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Course Program</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.profiles?.course_program || "N/A"}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Request Information Card */}
+                              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 mb-6 transform transition-all duration-300 ease-in-out hover:shadow-lg">
+                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                  <FileText className="h-5 w-5 text-green-600" />
+                                  Request Information
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Request ID</p>
+                                    <p className="font-semibold text-gray-900">#{selectedRequest.id.slice(-8)}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Document Type</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.document_type}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Year Level</p>
+                                    <p className="font-semibold text-gray-900">{selectedRequest.year_level || "N/A"}</p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Status</p>
+                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[selectedRequest.status]} transform transition-all duration-200 hover:scale-105`}>
+                                      <StatusIcon className="h-4 w-4 mr-1" />
+                                      {selectedRequest.status}
+                                    </span>
+                                  </div>
+                                  <div className="bg-white/70 rounded-lg p-4 md:col-span-2 transform transition-all duration-200 hover:scale-105">
+                                    <p className="text-sm text-gray-500 mb-1">Date Requested</p>
+                                    <p className="font-semibold text-gray-900">{new Date(selectedRequest.created_at).toLocaleDateString()}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Identity Verification Section */}
+                              {getVerificationUrl(selectedRequest.verification_url) && (
+                                <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200 mb-6 transform transition-all duration-300 ease-in-out hover:shadow-lg animate-slideDown">
+                                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Shield className="h-5 w-5 text-purple-600" />
+                                    Identity Verification
+                                  </h4>
+                                  <div className="bg-white/70 rounded-lg p-4">
+                                    <p className="text-sm text-gray-500 mb-3">Verification Document</p>
+                                    <a
+                                      href={getVerificationUrl(selectedRequest.verification_url)!}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-all duration-200 transform hover:scale-105"
+                                    >
+                                      <ExternalLink className="h-4 w-4" />
+                                      View Verification Document
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Action Buttons */}
+                              <div className="space-y-6 animate-slideUp">
+                                {/* Status Update Form */}
+                                <form onSubmit={handleUpdateStatus} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm transform transition-all duration-300 ease-in-out hover:shadow-lg">
+                                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Update Request Status</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        New Status
+                                      </label>
+                                      <select
+                                        value={statusToSet}
+                                        onChange={(e) => setStatusToSet(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
+                                      >
+                                        <option value="Pending">Pending</option>
+                                        <option value="On Process">On Process</option>
+                                        <option value="Ready for Pick-up">Ready for Pick-up</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Cancelled">Cancelled</option>
+                                      </select>
+                                    </div>
+                                    
+                                    {statusToSet === "Cancelled" && (
+                                      <div className="animate-fadeIn">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                          Cancellation Reason
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={cancellationReason}
+                                          onChange={(e) => setCancellationReason(e.target.value)}
+                                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
+                                          placeholder="Enter cancellation reason..."
+                                          required
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <button
+                                    type="submit"
+                                    disabled={updatingStatus}
+                                    className="w-full bg-sorsuMaroon text-white px-6 py-3 rounded-lg hover:bg-sorsuMaroon/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] font-medium"
+                                  >
+                                    {updatingStatus ? (
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span>Updating Status...</span>
+                                      </div>
+                                    ) : (
+                                      "Update Status"
+                                    )}
+                                  </button>
+                                </form>
+                                
+                                {/* Document Upload Form */}
+                                <form onSubmit={handleUploadEncryptedDocument} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm transform transition-all duration-300 ease-in-out hover:shadow-lg">
+                                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Upload Document</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Select File
+                                      </label>
+                                      <input
+                                        type="file"
+                                        onChange={handleFileChange}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Status After Upload
+                                      </label>
+                                      <select
+                                        value={statusAfterUpload}
+                                        onChange={(e) => setStatusAfterUpload(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
+                                      >
+                                        <option value="Ready for Pick-up">Ready for Pick-up</option>
+                                        <option value="Completed">Completed</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Decryption Key
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="text"
+                                        value={decryptionKey}
+                                        onChange={handleKeyChange}
+                                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
+                                        placeholder="Enter or generate decryption key..."
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={handleGenerateKey}
+                                        disabled={isSavingKey}
+                                        className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all duration-200 transform hover:scale-105 font-medium"
+                                      >
+                                        <Key className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleCopyKey}
+                                        disabled={!decryptionKey}
+                                        className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all duration-200 transform hover:scale-105 font-medium"
+                                      >
+                                        <Copy className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  
+                                  <button
+                                    type="submit"
+                                    disabled={uploading}
+                                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] font-medium"
+                                  >
+                                    {uploading ? (
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span>Uploading Document...</span>
+                                      </div>
+                                    ) : (
+                                      "Upload Document"
+                                    )}
+                                  </button>
+                                </form>
+                              </div>
+                            </div>
+                          ) : isTransitioning ? (
+                            <div className="flex items-center justify-center h-full p-6">
+                              <div className="text-center">
+                                <Loader2 className="h-8 w-8 text-blue-600 mx-auto mb-4 animate-spin" />
+                                <p className="text-sm text-gray-500">Loading request details...</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-full p-6 animate-fadeIn">
+                              <div className="text-center">
+                                <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                                <p className="text-lg font-medium text-gray-900 mb-2">Select a Request</p>
+                                <p className="text-sm text-gray-500">Choose a document request from the list to view details</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between text-[9px] text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-2.5 w-2.5" />
-                            {new Date(r.created_at).toLocaleDateString(undefined, { 
-                              month: 'short', 
-                              day: 'numeric' 
-                            })}
-                          </div>
-                          <div className="text-gray-400">
-                            {r.id.slice(0, 6).toUpperCase()}
-                          </div>
+                      </div>
+                      
+                      {/* Right Side - Request List */}
+                      <div className="w-full lg:w-96 lg:min-w-96">
+                        <div className="p-4 border-b border-gray-200">
+                          <h3 className="font-semibold text-gray-900">Request List</h3>
+                          <p className="text-sm text-gray-500">{filteredRequests.length} requests</p>
                         </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Right Column: Details & Actions */}
-            <div className={`
-              flex-1 flex-col overflow-y-auto bg-gradient-to-b from-gray-50/30 to-white/50 transition-all duration-300 ${
-                selectedRequestId ? 'flex' : 'hidden md:flex'
-              }`}
-            >
-              {selectedRequestId && (
-                <div className="md:hidden p-4 bg-white/90 backdrop-blur border-b border-gray-200/60 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-                  <button 
-                    onClick={() => setSelectedRequestId("")}
-                    className="flex items-center gap-2 text-sm font-bold text-sorsuMaroon hover:text-sorsuMaroon/80 transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" /> 
-                    <span>Back to Requests</span>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold border shadow-sm ${
-                      selectedRequest ? STATUS_COLORS[selectedRequest.status] || "bg-gray-100 text-gray-800 border-gray-200" : "bg-gray-100 text-gray-800 border-gray-200"
-                    }`}>
-                      <StatusIcon className="h-3 w-3" />
-                      {selectedRequest?.status}
-                    </span>
+                        
+                        <div className="overflow-y-auto h-[calc(100vh-380px)] custom-scrollbar">
+                          {filteredRequests.length === 0 ? (
+                            <div className="p-6 text-center text-gray-500">
+                              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                              <p className="text-lg font-medium text-gray-900 mb-2">No document requests found</p>
+                              <p className="text-sm text-gray-500">
+                                {searchTerm || filterStatus !== "all" 
+                                  ? "Try adjusting your search or filter criteria" 
+                                  : "No student document requests have been submitted yet"}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-200">
+                              {filteredRequests.map((request) => (
+                                <div
+                                  key={request.id}
+                                  className={`request-item p-4 cursor-pointer transition-all ${
+                                    selectedRequestId === request.id 
+                                      ? 'bg-blue-50 border-l-4 border-blue-500' 
+                                      : ''
+                                  }`}
+                                  onClick={() => handleRequestSelection(request.id)}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-gray-900 mb-1">
+                                        #{request.id.slice(-8)}
+                                      </p>
+                                      <p className="text-sm text-gray-900 font-medium">
+                                        {request.profiles?.full_name || "Unknown"}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        ID: {request.profiles?.student_id || "N/A"}
+                                      </p>
+                                    </div>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[request.status] || STATUS_COLORS.Pending} transform transition-all duration-200 hover:scale-105`}>
+                                      <StatusIcon className="h-3 w-3 mr-1" />
+                                      {request.status}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm text-gray-900">{request.document_type}</p>
+                                      {request.year_level && (
+                                        <p className="text-xs text-gray-500">Year {request.year_level}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {getVerificationUrl(request.verification_url) && (
+                                        <a
+                                          href={getVerificationUrl(request.verification_url)!}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-all duration-200 transform hover:scale-110"
+                                          title="View Verification"
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRequestSelection(request.id);
+                                        }}
+                                        className={`${
+                                          selectedRequestId === request.id 
+                                            ? "text-blue-600 bg-blue-50" 
+                                            : "text-gray-600 hover:text-gray-900"
+                                        } p-1 rounded transition-all duration-200 transform hover:scale-110`}
+                                        title="View Details"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    {new Date(request.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
-
-              <div className={`p-4 md:p-6 space-y-6 ${selectedRequestId ? '' : 'flex items-center justify-center h-full'}`}>
-                {error && (
-                  <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 p-4 text-sm text-rose-800 animate-in fade-in slide-in-from-top-2 shadow-lg">
-                    <div className="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-                      <AlertCircle className="h-4 w-4 text-rose-600" />
+              
+              {activeTab === "students" && (
+                <div className="p-6">
+                  <div className="bg-white rounded-lg shadow">
+                    {/* Header with Add Student Button */}
+                    <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-gray-900">Student Management</h2>
+                      <button
+                        onClick={() => {
+                          setSelectedStudent(null);
+                          setActionReason("");
+                          setShowApprovalModal(true);
+                        }}
+                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <UserCheck className="h-4 w-4" />
+                        <span>Approve Student</span>
+                      </button>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">Error</p>
-                      <p className="text-xs text-rose-600 mt-1">{error}</p>
-                    </div>
-                  </div>
-                )}
-
-                {successMessage && (
-                  <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 p-4 text-sm text-emerald-800 animate-in fade-in slide-in-from-top-2 shadow-lg">
-                    <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">Success</p>
-                      <p className="text-xs text-emerald-600 mt-1">{successMessage}</p>
-                    </div>
-                  </div>
-                )}
-
-                {!selectedRequest ? (
-                  <div className="flex flex-col items-center justify-center text-gray-400 max-w-lg">
-                    <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center shadow-lg mb-6 border border-gray-200/50">
-                      <FileText className="h-12 w-12 opacity-30" />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">Select a Request</h2>
-                    <p className="text-sm text-gray-500 text-center mb-6">Choose a document request from the list to view details and manage processing.</p>
-                    <div className="flex flex-col items-center gap-3 text-xs text-gray-400 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></div>
-                        <span>Pending requests need attention</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                        <span>Completed requests are ready</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
-                        <span>Click any request to begin</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Enhanced Header Info Card */}
-                    <div className="rounded-2xl bg-white/95 backdrop-blur border border-gray-200/60 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-                      <div className="bg-gradient-to-r from-sorsuMaroon via-sorsuMaroon/90 to-sorsuMaroon/80 h-3 w-full"></div>
-                      <div className="p-6">
-                        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 text-xs font-bold text-sorsuMaroon uppercase tracking-wider mb-3">
-                              <FileText className="h-4 w-4" /> 
-                              <span>Request Details</span>
-                              <div className="h-px flex-1 bg-sorsuMaroon/20 mx-2"></div>
-                            </div>
-                            <h2 className="text-2xl lg:text-3xl font-black text-gray-900 mb-2 leading-tight">
-                              {selectedRequest.document_type}
-                            </h2>
-                            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                              <span className="bg-gray-100 px-3 py-1 rounded-lg font-mono text-xs font-semibold border border-gray-200">
-                                ID: {selectedRequest.id.slice(0, 8).toUpperCase()}...
-                              </span>
-                              <span className="flex items-center gap-1 text-xs">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(selectedRequest.created_at).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-3">
-                            <span
-                              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold border shadow-lg ${
-                                selectedRequest ? STATUS_COLORS[selectedRequest.status] || "bg-gray-100 text-gray-800 border-gray-200" : "bg-gray-100 text-gray-800 border-gray-200"
-                              }`}
-                            >
-                              <StatusIcon className="h-5 w-5" />
-                              {selectedRequest?.status}
-                            </span>
-                            {selectedRequest.encrypted_file_path && (
-                              <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200">
-                                <FileLock className="h-3 w-3" />
-                                <span className="font-medium">Secure Document</span>
-                              </div>
-                            )}
-                          </div>
+                    
+                    {/* Search and Filters */}
+                    <div className="p-6 border-b border-gray-200">
+                      <div className="flex flex-col lg:flex-row gap-4">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by name, student ID, or email..."
+                            value={studentSearchTerm}
+                            onChange={(e) => setStudentSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
+                          />
                         </div>
-
-                        {/* Enhanced Student Information Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gradient-to-br from-gray-50/50 to-white rounded-2xl border border-gray-100/80 transition-all duration-300">
-                          <div className="space-y-2 group">
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <User className="h-3 w-3" /> 
-                              <span>Full Name</span>
-                            </div>
-                            <p className="text-sm font-bold text-gray-900 group-hover:text-sorsuMaroon transition-colors">
-                              {selectedRequest.profiles?.full_name || "N/A"}
-                            </p>
-                          </div>
-                          <div className="space-y-2 group">
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <Mail className="h-3 w-3" /> 
-                              <span>Email Address</span>
-                            </div>
-                            <p className="text-sm font-medium text-gray-600 truncate group-hover:text-sorsuMaroon/80 transition-colors">
-                              {selectedRequest.profiles?.email_address || "N/A"}
-                            </p>
-                          </div>
-                          <div className="space-y-2 group">
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <BookOpen className="h-3 w-3" /> 
-                              <span>Course & Year</span>
-                            </div>
-                            <p className="text-sm font-medium text-gray-600 group-hover:text-sorsuMaroon/80 transition-colors">
-                              {selectedRequest.profiles?.course_program || "N/A"} 
-                              {selectedRequest.year_level && (
-                                <span className="ml-1 text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded text-xs">
-                                  {selectedRequest.year_level}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="space-y-2 group">
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <Phone className="h-3 w-3" /> 
-                              <span>Contact Number</span>
-                            </div>
-                            <p className="text-sm font-medium text-gray-600 group-hover:text-sorsuMaroon/80 transition-colors">
-                              {selectedRequest.profiles?.contact_number || "N/A"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {selectedRequest.verification_url && (
-                          <div className="mt-6">
-                            <button 
-                              onClick={async () => {
-                                if (selectedRequest.verification_url) {
-                                  const parts = selectedRequest.verification_url.split("/");
-                                  if (parts.length >= 2) {
-                                    const bucket = parts[0];
-                                    const path = parts.slice(1).join("/");
-                                    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
-                                    if (data?.signedUrl) {
-                                      window.open(data.signedUrl, "_blank");
-                                    }
-                                  }
-                                }
-                              }}
-                              className="inline-flex items-center gap-2 text-sm font-bold text-sorsuMaroon hover:text-sorsuMaroon/80 bg-gradient-to-r from-sorsuMaroon/5 to-sorsuMaroon/10 hover:from-sorsuMaroon/10 hover:to-sorsuMaroon/20 px-4 py-3 rounded-xl transition-all duration-200 border border-sorsuMaroon/20 hover:border-sorsuMaroon/30 shadow-sm hover:shadow-md"
-                            >
-                              <ExternalLink className="h-4 w-4" /> 
-                              <span>View Verification Document</span>
-                              <div className="h-2 w-2 rounded-full bg-sorsuMaroon animate-pulse"></div>
-                            </button>
-                          </div>
-                        )}
+                        <select
+                          value={studentStatusFilter}
+                          onChange={(e) => setStudentStatusFilter(e.target.value as "all" | "pending" | "approved" | "banned")}
+                          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
+                        >
+                          <option value="all">All Students</option>
+                          <option value="pending">Pending Approval</option>
+                          <option value="approved">Approved</option>
+                          <option value="banned">Banned</option>
+                        </select>
                       </div>
                     </div>
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      {/* Enhanced Status Update Form */}
-                      <div className="rounded-2xl bg-white/95 backdrop-blur border border-gray-200/60 shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border border-blue-200">
-                            <RefreshCw className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <h3 className="text-base font-black text-gray-900 uppercase tracking-wide">Update Status</h3>
-                            <p className="text-xs text-gray-500">Change request processing status</p>
-                          </div>
-                        </div>
-                        <form onSubmit={handleUpdateStatus} className="space-y-5">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
-                              New Status
-                            </label>
-                            <select
-                              value={statusToSet}
-                              onChange={(e) => setStatusToSet(e.target.value)}
-                              className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-4 py-3 text-sm font-semibold focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
-                            >
-                              <option value="Pending">⏳ Pending</option>
-                              <option value="On Process">🔄 On Process</option>
-                              <option value="Ready for Pick-up">📦 Ready for Pick-up</option>
-                              <option value="Completed">✅ Completed</option>
-                              <option value="Cancelled">❌ Cancelled</option>
-                            </select>
-                          </div>
-
-                          {statusToSet === "Cancelled" && (
-                            <div className="animate-in slide-in-from-top-2 duration-300">
-                              <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
-                                Reason for Cancellation
-                              </label>
-                              <textarea
-                                value={cancellationReason}
-                                onChange={(e) => setCancellationReason(e.target.value)}
-                                className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-4 py-3 text-sm focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none min-h-[100px] transition-all duration-200 shadow-sm resize-none"
-                                placeholder="e.g., Missing requirements, please re-upload documents..."
-                              />
-                            </div>
-                          )}
-
-                          <button
-                            type="submit"
-                            disabled={updatingStatus}
-                            className="w-full rounded-xl bg-gradient-to-r from-gray-900 to-black px-4 py-3.5 text-sm font-black text-white hover:from-gray-800 hover:to-gray-900 disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none flex items-center justify-center gap-2"
-                          >
-                            {updatingStatus ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" /> 
-                                <span>Updating Status...</span>
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="h-4 w-4" /> 
-                                <span>Update Request Status</span>
-                              </>
-                            )}
-                          </button>
-                        </form>
-                      </div>
-
-                      {/* Enhanced File Upload Form */}
-                      <div className="rounded-2xl bg-white/95 backdrop-blur border border-gray-200/60 shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center border border-emerald-200">
-                            <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                          </div>
-                          <div>
-                            <h3 className="text-base font-black text-gray-900 uppercase tracking-wide">Secure Upload</h3>
-                            <p className="text-xs text-gray-500">Upload encrypted document</p>
-                          </div>
-                        </div>
-                        <form onSubmit={handleUploadEncryptedDocument} className="space-y-5">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
-                              Select Document
-                            </label>
-                            <div className="relative group">
-                              <input
-                                type="file"
-                                onChange={handleFileChange}
-                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gradient-to-r file:from-sorsuMaroon/10 file:to-sorsuMaroon/5 file:text-sorsuMaroon hover:file:from-sorsuMaroon/20 hover:file:to-sorsuMaroon/10 border border-gray-200 rounded-xl cursor-pointer bg-gray-50/50 p-2 transition-all duration-200 hover:border-sorsuMaroon/30 file:transition-all"
-                              />
-                              {file && (
-                                <div className="mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
-                                  <CheckCircle className="h-3 w-3" />
-                                  {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    
+                    {/* Students Table */}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Student
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Contact
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Program
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Registered
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {paginatedStudents.map((student) => (
+                            <tr key={student.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{student.full_name}</div>
+                                  <div className="text-sm text-gray-500">ID: {student.student_id}</div>
                                 </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
-                              Encryption Key
-                            </label>
-                            <div className="flex gap-2">
-                              <div className="relative flex-1">
-                                <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                <input
-                                  type="text"
-                                  value={decryptionKey}
-                                  onChange={handleKeyChange}
-                                  className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 pl-10 pr-3 py-3 text-sm font-mono focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
-                                  placeholder="Generate or enter key..."
-                                />
-                                {isSavingKey && (
-                                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <Loader2 className="h-4 w-4 animate-spin text-sorsuMaroon" />
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={handleGenerateKey}
-                                className="p-3 rounded-xl bg-gradient-to-r from-sorsuMaroon/10 to-sorsuMaroon/5 hover:from-sorsuMaroon/20 hover:to-sorsuMaroon/10 border border-sorsuMaroon/20 hover:border-sorsuMaroon/30 text-sorsuMaroon transition-all duration-200 shadow-sm hover:shadow-md"
-                                title="Generate New Key"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleCopyKey}
-                                className="p-3 rounded-xl bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 border border-gray-200 hover:border-gray-300 text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                                title="Copy Key"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
-                              Post-Upload Status
-                            </label>
-                            <select
-                              value={statusAfterUpload}
-                              onChange={(e) => setStatusAfterUpload(e.target.value)}
-                              className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-4 py-3 text-sm font-semibold focus:border-sorsuMaroon focus:ring-2 focus:ring-sorsuMaroon/10 outline-none transition-all duration-200 shadow-sm"
-                            >
-                              <option value="Completed">✅ Completed</option>
-                              <option value="Ready for Pick-up">📦 Ready for Pick-up</option>
-                              <option value="On Process">🔄 On Process</option>
-                            </select>
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={uploading}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sorsuMaroon to-sorsuMaroon/90 hover:from-sorsuMaroon/90 hover:to-sorsuMaroon px-4 py-3.5 text-sm font-black text-white disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
-                          >
-                            {uploading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" /> 
-                                <span>Encrypting & Uploading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="h-4 w-4" /> 
-                                <span>Encrypt & Upload Document</span>
-                              </>
-                            )}
-                          </button>
-                        </form>
-                      </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{student.email_address}</div>
+                                <div className="text-sm text-gray-500">{student.contact_number}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{student.course_program || "Not set"}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  {student.is_banned ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      <Ban className="h-3 w-3 mr-1" />
+                                      Banned
+                                    </span>
+                                  ) : !student.is_approved ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                      <AlertCircle className="h-3 w-3 mr-1" />
+                                      Pending
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      <UserCheck className="h-3 w-3 mr-1" />
+                                      Approved
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(student.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStudent(student);
+                                      setShowViewModal(true);
+                                    }}
+                                    className="text-gray-600 hover:text-gray-900"
+                                    title="View Details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  {!student.is_approved && !student.is_banned && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedStudent(student);
+                                          setShowApprovalModal(true);
+                                        }}
+                                        className="text-green-600 hover:text-green-900"
+                                        title="Approve"
+                                      >
+                                        <UserCheck className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedStudent(student);
+                                          setShowBanModal(true);
+                                        }}
+                                        className="text-red-600 hover:text-red-900"
+                                        title="Ban"
+                                      >
+                                        <Ban className="h-4 w-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                  {student.is_banned && (
+                                    <button
+                                      onClick={() => handleUnbanStudent(student.id)}
+                                      className="text-blue-600 hover:text-blue-900"
+                                      title="Unban"
+                                    >
+                                      <UserCheck className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-
-                    {/* Enhanced Secure File Info */}
-                    {selectedRequest.encrypted_file_path && (
-                      <div className="p-5 bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 rounded-2xl border border-emerald-200/60 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500 shadow-lg">
-                        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center text-emerald-700 shadow-inner border border-emerald-200">
-                          <FileLock className="h-7 w-7" />
+                    
+                    {/* Pagination */}
+                    {studentTotalPages > 1 && (
+                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                        <div className="flex-1 flex justify-between sm:hidden">
+                          <button
+                            onClick={() => setStudentCurrentPage(Math.max(1, studentCurrentPage - 1))}
+                            disabled={studentCurrentPage === 1}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            Previous
+                          </button>
+                          <button
+                            onClick={() => setStudentCurrentPage(Math.min(studentTotalPages, studentCurrentPage + 1))}
+                            disabled={studentCurrentPage === studentTotalPages}
+                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            Next
+                          </button>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-base font-black text-emerald-900">
-                            📄 Secure Document Uploaded
-                          </p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <p className="text-xs text-emerald-700 font-medium">
-                              {selectedRequest.original_file_name}
-                            </p>
-                            <span className="text-emerald-400">•</span>
-                            <p className="text-xs text-emerald-600">
-                              {new Date(selectedRequest.created_at).toLocaleDateString()}
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              Showing{" "}
+                              <span className="font-medium">
+                                {(studentCurrentPage - 1) * studentItemsPerPage + 1}
+                              </span>{" "}
+                              to{" "}
+                              <span className="font-medium">
+                                {Math.min(studentCurrentPage * studentItemsPerPage, filteredStudents.length)}
+                              </span>{" "}
+                              of{" "}
+                              <span className="font-medium">{filteredStudents.length}</span> results
                             </p>
                           </div>
-                          {selectedRequest.decryption_key && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <span className="text-xs text-emerald-600 font-medium">Key Available:</span>
-                              <span className="text-xs font-mono bg-emerald-100 px-2 py-1 rounded text-emerald-800">
-                                {selectedRequest.decryption_key.slice(0, 8)}***
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                          <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                              <button
+                                onClick={() => setStudentCurrentPage(Math.max(1, studentCurrentPage - 1))}
+                                disabled={studentCurrentPage === 1}
+                                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                              >
+                                Previous
+                              </button>
+                              {Array.from({ length: studentTotalPages }, (_, i) => i + 1).map((page) => (
+                                <button
+                                  key={page}
+                                  onClick={() => setStudentCurrentPage(page)}
+                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                    studentCurrentPage === page
+                                      ? "z-10 bg-sorsuMaroon border-sorsuMaroon text-white"
+                                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              ))}
+                              <button
+                                onClick={() => setStudentCurrentPage(Math.min(studentTotalPages, studentCurrentPage + 1))}
+                                disabled={studentCurrentPage === studentTotalPages}
+                                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                              >
+                                Next
+                              </button>
+                            </nav>
                           </div>
-                          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
                         </div>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+              
+              {activeTab === "student-ids" && (
+                <div className="p-6">
+                  <div className="bg-white rounded-lg shadow">
+                    {/* Header with Add Student ID Button */}
+                    <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-gray-900">Student ID Management</h2>
+                      <button
+                        onClick={() => {
+                          setIdFormData({
+                            student_id: "",
+                            is_active: true,
+                            notes: "",
+                          });
+                          setShowAddIDModal(true);
+                        }}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Add Student ID</span>
+                      </button>
+                    </div>
+                    
+                    {/* Search and Filters */}
+                    <div className="p-6 border-b border-gray-200">
+                      <div className="flex flex-col lg:flex-row gap-4">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by student ID or name..."
+                            value={studentIDSearchTerm}
+                            onChange={(e) => setStudentIDSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
+                          />
+                        </div>
+                        <select
+                          value={studentIDStatusFilter}
+                          onChange={(e) => setStudentIDStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
+                        >
+                          <option value="all">All IDs</option>
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    {/* Student IDs Table */}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Student ID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Student Name
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Created
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {paginatedStudentIDs.map((studentID) => (
+                            <tr key={studentID.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{studentID.student_id}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{studentID.notes || "Not specified"}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  {studentID.is_active ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      <Shield className="h-3 w-3 mr-1" />
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      <Shield className="h-3 w-3 mr-1" />
+                                      Inactive
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(studentID.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStudentID(studentID);
+                                      setShowViewIDModal(true);
+                                    }}
+                                    className="text-gray-600 hover:text-gray-900"
+                                    title="View Details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStudentID(studentID);
+                                      setIdFormData({
+                                        student_id: studentID.student_id,
+                                        is_active: studentID.is_active,
+                                        notes: studentID.notes || "",
+                                      });
+                                      setShowEditIDModal(true);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-900"
+                                    title="Edit"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleStudentIDStatus(studentID)}
+                                    className={studentID.is_active ? "text-yellow-600 hover:text-yellow-900" : "text-green-600 hover:text-green-900"}
+                                    title={studentID.is_active ? "Deactivate" : "Activate"}
+                                  >
+                                    {studentID.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStudentID(studentID);
+                                      setShowDeleteIDModal(true);
+                                    }}
+                                    className="text-red-600 hover:text-red-900"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Pagination */}
+                    {studentIDTotalPages > 1 && (
+                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                        <div className="flex-1 flex justify-between sm:hidden">
+                          <button
+                            onClick={() => setStudentIDCurrentPage(Math.max(1, studentIDCurrentPage - 1))}
+                            disabled={studentIDCurrentPage === 1}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            Previous
+                          </button>
+                          <button
+                            onClick={() => setStudentIDCurrentPage(Math.min(studentIDTotalPages, studentIDCurrentPage + 1))}
+                            disabled={studentIDCurrentPage === studentIDTotalPages}
+                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            Next
+                          </button>
+                        </div>
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              Showing{" "}
+                              <span className="font-medium">
+                                {(studentIDCurrentPage - 1) * studentIDItemsPerPage + 1}
+                              </span>{" "}
+                              to{" "}
+                              <span className="font-medium">
+                                {Math.min(studentIDCurrentPage * studentIDItemsPerPage, filteredStudentIDs.length)}
+                              </span>{" "}
+                              of{" "}
+                              <span className="font-medium">{filteredStudentIDs.length}</span> results
+                            </p>
+                          </div>
+                          <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                              <button
+                                onClick={() => setStudentIDCurrentPage(Math.max(1, studentIDCurrentPage - 1))}
+                                disabled={studentIDCurrentPage === 1}
+                                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                              >
+                                Previous
+                              </button>
+                              {Array.from({ length: studentIDTotalPages }, (_, i) => i + 1).map((page) => (
+                                <button
+                                  key={page}
+                                  onClick={() => setStudentIDCurrentPage(page)}
+                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                    studentIDCurrentPage === page
+                                      ? "z-10 bg-sorsuMaroon border-sorsuMaroon text-white"
+                                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              ))}
+                              <button
+                                onClick={() => setStudentIDCurrentPage(Math.min(studentIDTotalPages, studentIDCurrentPage + 1))}
+                                disabled={studentIDCurrentPage === studentIDTotalPages}
+                                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                              >
+                                Next
+                              </button>
+                            </nav>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === "analytics" && (
+                <div className="p-6">
+                  <div className="bg-white rounded-lg shadow">
+                    <h2 className="text-lg font-semibold text-gray-900 p-6 border-b border-gray-200">Analytics</h2>
+                    <div className="p-6 text-center text-gray-500">
+                      Analytics functionality will be implemented here.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
           </div>
         )}
       </main>
+
+      {/* Approval Modal */}
+      {showApprovalModal && selectedStudent && (
+        <>
+          {/* Backdrop with blur effect */}
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          
+          {/* Modal content */}
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                  <UserCheck className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Approve Student Account</h3>
+                  <p className="text-sm text-gray-600">Review and approve this student registration</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/30">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Name:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.full_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Email:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.email_address}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student ID:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.student_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Program:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.course_program || "Not set"}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Approval Reason (Optional)
+                </label>
+                <textarea
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                  placeholder="Enter reason for approval..."
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleApproveStudent}
+                  disabled={actionLoading}
+                  className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {actionLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Approving...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <UserCheck className="h-4 w-4" />
+                      <span>Approve Student</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowApprovalModal(false);
+                    setSelectedStudent(null);
+                    setActionReason("");
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Ban Modal */}
+      {showBanModal && selectedStudent && (
+        <>
+          {/* Backdrop with blur effect */}
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          
+          {/* Modal content */}
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                  <Ban className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Ban Student Account</h3>
+                  <p className="text-sm text-gray-600">This action will restrict student access</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/30">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Name:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.full_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Email:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.email_address}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student ID:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.student_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Program:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.course_program || "Not set"}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Ban Reason <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                  placeholder="Enter reason for ban..."
+                  required
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleBanStudent}
+                  disabled={actionLoading}
+                  className="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {actionLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Banning...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Ban className="h-4 w-4" />
+                      <span>Ban Student</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBanModal(false);
+                    setSelectedStudent(null);
+                    setActionReason("");
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* View Student Modal */}
+      {showViewModal && selectedStudent && (
+        <>
+          {/* Backdrop with blur effect */}
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          
+          {/* Modal content */}
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <Eye className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Student Details</h3>
+                  <p className="text-sm text-gray-600">View complete student information</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/30">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Full Name:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.full_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Email Address:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.email_address}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student ID:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.student_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Contact Number:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.contact_number}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Course Program:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudent.course_program || "Not set"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Account Status:</span>
+                    <span className="text-sm font-semibold">
+                      {selectedStudent.is_banned ? (
+                        <span className="text-red-600">Banned</span>
+                      ) : !selectedStudent.is_approved ? (
+                        <span className="text-yellow-600">Pending Approval</span>
+                      ) : (
+                        <span className="text-green-600">Approved</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Registration Date:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {new Date(selectedStudent.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {selectedStudent.approval_reason && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Approval Reason:</span>
+                      <span className="text-sm font-semibold text-gray-900">{selectedStudent.approval_reason}</span>
+                    </div>
+                  )}
+                  {selectedStudent.ban_reason && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Ban Reason:</span>
+                      <span className="text-sm font-semibold text-gray-900">{selectedStudent.ban_reason}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedStudent(null);
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Add Student ID Modal */}
+      {showAddIDModal && (
+        <>
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <Plus className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Add Student ID</h3>
+                  <p className="text-sm text-gray-600">Add a new student ID to the system</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Student ID <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={idFormData.student_id}
+                    onChange={(e) => setIdFormData(prev => ({ ...prev, student_id: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter student ID..."
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Student Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={idFormData.notes}
+                    onChange={(e) => setIdFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter student name..."
+                  />
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={idFormData.is_active}
+                    onChange={(e) => setIdFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+                    Active (students can use this ID for registration)
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddStudentID}
+                  disabled={idActionLoading}
+                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {idActionLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Adding...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      <span>Add Student ID</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddIDModal(false);
+                    setIdFormData({
+                      student_id: "",
+                      is_active: true,
+                      notes: "",
+                    });
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Edit Student ID Modal */}
+      {showEditIDModal && selectedStudentID && (
+        <>
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
+                  <Edit2 className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Edit Student ID</h3>
+                  <p className="text-sm text-gray-600">Update student ID information</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Student ID <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={idFormData.student_id}
+                    onChange={(e) => setIdFormData(prev => ({ ...prev, student_id: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    placeholder="Enter student ID..."
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Student Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={idFormData.notes}
+                    onChange={(e) => setIdFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    placeholder="Enter student name..."
+                  />
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="edit_is_active"
+                    checked={idFormData.is_active}
+                    onChange={(e) => setIdFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="edit_is_active" className="text-sm font-medium text-gray-700">
+                    Active (students can use this ID for registration)
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleEditStudentID}
+                  disabled={idActionLoading}
+                  className="flex-1 bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {idActionLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Updating...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Edit2 className="h-4 w-4" />
+                      <span>Update Student ID</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditIDModal(false);
+                    setSelectedStudentID(null);
+                    setIdFormData({
+                      student_id: "",
+                      is_active: true,
+                      notes: "",
+                    });
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Student ID Modal */}
+      {showDeleteIDModal && selectedStudentID && (
+        <>
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Delete Student ID</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/30">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student ID:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudentID.student_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student Name:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudentID.notes || "Not specified"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Status:</span>
+                    <span className="text-sm font-semibold">
+                      {selectedStudentID.is_active ? (
+                        <span className="text-green-600">Active</span>
+                      ) : (
+                        <span className="text-red-600">Inactive</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-sm text-red-600 font-medium">
+                  ⚠️ Warning: Deleting this student ID will prevent students from using it for registration. This action cannot be undone.
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDeleteStudentID}
+                  disabled={idActionLoading}
+                  className="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {idActionLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Deleting...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Trash2 className="h-4 w-4" />
+                      <span>Delete Student ID</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteIDModal(false);
+                    setSelectedStudentID(null);
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* View Student ID Modal */}
+      {showViewIDModal && selectedStudentID && (
+        <>
+          <div className="fixed inset-0 backdrop-blur-xl z-40" />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all border border-white/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <Eye className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Student ID Details</h3>
+                  <p className="text-sm text-gray-600">View complete student ID information</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/30">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student ID:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudentID.student_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Student Name:</span>
+                    <span className="text-sm font-semibold text-gray-900">{selectedStudentID.notes || "Not specified"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Status:</span>
+                    <span className="text-sm font-semibold">
+                      {selectedStudentID.is_active ? (
+                        <span className="text-green-600">Active</span>
+                      ) : (
+                        <span className="text-red-600">Inactive</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Created:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {new Date(selectedStudentID.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Last Updated:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {new Date(selectedStudentID.updated_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowViewIDModal(false);
+                    setSelectedStudentID(null);
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Logout Confirmation Modal */}
       <LogoutConfirmationModal
