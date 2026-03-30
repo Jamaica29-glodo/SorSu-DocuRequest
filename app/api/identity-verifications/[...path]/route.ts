@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     console.log("=== Identity Verification File Access ===");
@@ -17,10 +17,13 @@ export async function GET(
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+    // Await the params to get the path
+    const resolvedParams = await params;
+
     // Extract path from params
     let filePath: string;
-    if (params.path && params.path.length > 0) {
-      filePath = params.path.join('/');
+    if (resolvedParams.path && resolvedParams.path.length > 0) {
+      filePath = resolvedParams.path.join('/');
     } else {
       // Fallback: extract from URL
       const url = new URL(request.url);
