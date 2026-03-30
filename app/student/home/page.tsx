@@ -53,6 +53,25 @@ const DOCUMENT_TYPES = [
   { value: "Good Moral", label: "Good Moral Certificate", icon: Shield },
 ];
 
+const COURSE_PROGRAMS = [
+  "BSCS",
+  "BSIT", 
+  "BSAIS",
+  "BTVTED",
+  "BSIS",
+  "BPA",
+  "ENTREPRENEUR",
+  "ACCOUNTANCY",
+];
+
+const YEAR_LEVELS = [
+  "1st Year",
+  "2nd Year", 
+  "3rd Year",
+  "4th Year",
+  "Graduated",
+];
+
 type StudentRequestRow = {
   id: string;
   document_type: string;
@@ -85,6 +104,7 @@ export default function StudentHomePage() {
   const [fullName, setFullName] = useState("");
   const [courseProgram, setCourseProgram] = useState("");
   const [yearLevel, setYearLevel] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
   const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [identityVerification, setIdentityVerification] = useState<File | null>(null);
@@ -99,6 +119,13 @@ export default function StudentHomePage() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [showImageReminderModal, setShowImageReminderModal] = useState(false);
   const [hasUploadedIdentityImage, setHasUploadedIdentityImage] = useState(false);
+
+  // Decryption key modal state
+  const [showDecryptionKeyModal, setShowDecryptionKeyModal] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [passwordForDecryption, setPasswordForDecryption] = useState("");
+  const [decryptionKey, setDecryptionKey] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const checkIdentityImageStatus = useCallback(async () => {
     if (!userId) return;
@@ -234,6 +261,7 @@ export default function StudentHomePage() {
     if (!fullName.trim()) missing.push("Full Name");
     if (!courseProgram.trim()) missing.push("Course Program");
     if (!yearLevel.trim()) missing.push("Year Level / Year Graduated");
+    if (yearLevel === "Graduated" && !graduationYear.trim()) missing.push("Year Graduated");
     if (!email.trim()) missing.push("Email Address");
     if (!contactNumber.trim()) missing.push("Contact Number");
     if (!newDocumentType.trim()) missing.push("Document Type (select a document to request)");
@@ -308,6 +336,7 @@ export default function StudentHomePage() {
       // Reset form
       setNewDocumentType("");
       setYearLevel("");
+      setGraduationYear("");
       setIdentityVerification(null);
       setSuccessMessage("Document request submitted successfully!");
       setShowCreateForm(false);
@@ -317,6 +346,67 @@ export default function StudentHomePage() {
     } finally {
       setCreatingRequest(false);
     }
+  };
+
+  const handleShowDecryptionKey = async (requestId: string) => {
+    setSelectedRequestId(requestId);
+    setShowDecryptionKeyModal(true);
+    setPasswordForDecryption("");
+    setPasswordError(null);
+  };
+
+  const handleVerifyPasswordAndShowKey = async () => {
+    if (!userId || !selectedRequestId) return;
+    
+    setPasswordError(null);
+    
+    try {
+      // Verify user's password by attempting to sign in
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: passwordForDecryption,
+      });
+
+      if (error) {
+        setPasswordError("Invalid password. Please try again.");
+        return;
+      }
+
+      // If password is correct, retrieve the decryption key from the database
+      const { data: requestData, error: fetchError } = await supabase
+        .from("requests")
+        .select("decryption_key")
+        .eq("id", selectedRequestId)
+        .eq("user_id", userId)
+        .single();
+
+      if (fetchError) {
+        setPasswordError("Failed to retrieve decryption key. Please try again.");
+        return;
+      }
+
+      if (!requestData || !requestData.decryption_key) {
+        setPasswordError("No decryption key found for this request. The document may not be ready yet.");
+        return;
+      }
+
+      setDecryptionKey(requestData.decryption_key);
+      setShowDecryptionKeyModal(false);
+      setPasswordForDecryption("");
+    } catch (error) {
+      setPasswordError("An error occurred while verifying your password.");
+    }
+  };
+
+  const handleCloseDecryptionKeyModal = () => {
+    setShowDecryptionKeyModal(false);
+    setSelectedRequestId(null);
+    setPasswordForDecryption("");
+    setPasswordError(null);
+  };
+
+  const handleCloseKeyDisplay = () => {
+    setDecryptionKey(null);
   };
 
   const handleDecryptAndDownload = async (request: StudentRequestRow) => {
@@ -577,27 +667,54 @@ export default function StudentHomePage() {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Course Program
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={courseProgram}
                         onChange={(e) => setCourseProgram(e.target.value)}
                         required
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
-                        placeholder="e.g., Bachelor of Science in Computer Science"
-                      />
+                      >
+                        <option value="">Select your course program</option>
+                        {COURSE_PROGRAMS.map((program) => (
+                          <option key={program} value={program}>
+                            {program}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Year Level / Year Graduated
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={yearLevel}
                         onChange={(e) => setYearLevel(e.target.value)}
                         required
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
-                        placeholder="e.g., 3rd Year or 2023"
-                      />
+                      >
+                        <option value="">Select your year level</option>
+                        {YEAR_LEVELS.map((level) => (
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
+                        ))}
+                      </select>
+                      {yearLevel === "Graduated" && (
+                        <div className="mt-3">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Year Graduated
+                          </label>
+                          <input
+                            type="number"
+                            value={graduationYear}
+                            onChange={(e) => setGraduationYear(e.target.value)}
+                            required
+                            min="2000"
+                            max={new Date().getFullYear()}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
+                            placeholder="e.g., 2023"
+                          />
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -798,6 +915,16 @@ export default function StudentHomePage() {
                                   Download
                                 </button>
                               </div>
+                            </div>
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => handleShowDecryptionKey(request.id)}
+                                className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2.5 font-bold text-gray-700 hover:bg-gray-200 transition-all border border-gray-300 shadow-sm"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Show Decryption Key
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1040,6 +1167,166 @@ export default function StudentHomePage() {
                   Remind Later
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Verification Modal for Decryption Key */}
+      {showDecryptionKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleCloseDecryptionKeyModal}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-sorsuMaroon px-6 py-5 border-b border-maroon-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 shrink-0">
+                    <Shield className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Verify Your Identity</h3>
+                    <p className="text-sm text-maroon-100 mt-0.5">Enter your password to view the decryption key</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseDecryptionKeyModal}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white hover:text-white hover:bg-white/30 transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Your Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordForDecryption}
+                    onChange={(e) => setPasswordForDecryption(e.target.value)}
+                    placeholder="Enter your account password"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
+                    autoFocus
+                  />
+                </div>
+                
+                {passwordError && (
+                  <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+                    <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+                    <span className="font-medium text-sm">{passwordError}</span>
+                  </div>
+                )}
+
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                  <p className="text-sm text-blue-800">
+                    <strong>Security Notice:</strong> For your protection, we need to verify your identity before showing the decryption key. This ensures that only authorized users can access sensitive document information.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleVerifyPasswordAndShowKey}
+                  disabled={!passwordForDecryption.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sorsuMaroon px-6 py-3.5 font-bold text-white hover:bg-maroon-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-maroon-900/20 active:scale-[0.98]"
+                >
+                  <Shield className="h-5 w-5" />
+                  Verify & Show Key
+                </button>
+                <button
+                  onClick={handleCloseDecryptionKeyModal}
+                  className="px-6 py-3.5 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Decryption Key Display Modal */}
+      {decryptionKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleCloseKeyDisplay}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-green-50 px-6 py-5 border-b border-green-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 shrink-0">
+                    <CheckCircle className="h-7 w-7 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Decryption Key</h3>
+                    <p className="text-sm text-green-600 mt-0.5">Your identity has been verified</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseKeyDisplay}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Your Decryption Key
+                  </label>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <code className="text-lg font-mono text-gray-900 break-all">
+                      {decryptionKey}
+                    </code>
+                  </div>
+                </div>
+                
+                <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+                  <p className="text-sm text-amber-800">
+                    <strong>Important:</strong> Copy this key securely and keep it confidential. You will need this key to decrypt and download your document. Do not share this key with anyone.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(decryptionKey);
+                    setSuccessMessage("Decryption key copied to clipboard!");
+                    setTimeout(() => setSuccessMessage(null), 3000);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-gray-100 px-4 py-3 font-bold text-gray-700 hover:bg-gray-200 transition-all border border-gray-300"
+                >
+                  <FileText className="h-5 w-5" />
+                  Copy to Clipboard
+                </button>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <button
+                onClick={handleCloseKeyDisplay}
+                className="w-full px-6 py-3.5 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
