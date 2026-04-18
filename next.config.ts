@@ -37,7 +37,7 @@ function loadEnvLocalFile() {
 loadEnvLocalFile();
 
 const nextConfig: NextConfig = {
-  // PWA Configuration
+  // PWA Configuration - Headers for service worker and manifest
   async headers() {
     return [
       {
@@ -59,14 +59,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  // Enable PWA
-  pwa: {
-    dest: 'public',
-    disable: false,
-    register: true,
-    scope: '/',
-    sw: 'sw.js',
   },
 };
 
