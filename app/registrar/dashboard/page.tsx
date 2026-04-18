@@ -1348,7 +1348,7 @@ export default function RegistrarDashboardPage() {
                               )}
                               
                               {/* Action Buttons */}
-                              <div className="space-y-6 animate-slideUp">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slideUp">
                                 {/* Status Update Form */}
                                 <form onSubmit={handleUpdateStatus} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm transform transition-all duration-300 ease-in-out hover:shadow-lg">
                                   <h4 className="text-lg font-semibold text-gray-900 mb-4">Update Request Status</h4>
