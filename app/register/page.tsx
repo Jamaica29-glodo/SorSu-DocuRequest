@@ -113,6 +113,17 @@ export default function Register() {
                   type="text"
                   placeholder="Juan dela Cruz"
                   required
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  name="full-name-field"
+                  data-form-type="other"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="block w-full pl-9 pr-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition-colors"
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 />
@@ -131,6 +142,17 @@ export default function Register() {
                   type="text"
                   placeholder="202X-0000-X"
                   required
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  name="student-id-field"
+                  data-form-type="other"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="block w-full pl-9 pr-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition-colors"
                   onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
                 />
@@ -149,6 +171,17 @@ export default function Register() {
                   type="email"
                   placeholder="student@sorsu.edu.ph"
                   required
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  name="email-field"
+                  data-form-type="other"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="block w-full pl-9 pr-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition-colors"
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -188,6 +221,17 @@ export default function Register() {
                     type="text"
                     placeholder="0912..."
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    name="contact-field"
+                    data-form-type="other"
+                    data-lp-ignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-kwimpalastatus="ignore"
+                    formNoValidate
                     className="block w-full pl-9 pr-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition-colors"
                     onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
                   />
@@ -208,6 +252,17 @@ export default function Register() {
                   placeholder="Min. 8 characters"
                   required
                   minLength={8}
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  name="password-field"
+                  data-form-type="password"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="block w-full pl-9 pr-10 py-2 border border-gray-300 bg-white rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition-colors"
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />

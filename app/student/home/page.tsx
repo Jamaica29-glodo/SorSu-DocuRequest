@@ -646,6 +646,17 @@ export default function StudentHomePage() {
                         value={studentId}
                         onChange={(e) => setStudentId(e.target.value)}
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        name="student-id-number-field"
+                        data-form-type="other"
+                        data-lp-ignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
+                        data-kwimpalastatus="ignore"
+                        formNoValidate
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                         placeholder="e.g., 2021-0000-X"
                       />
@@ -659,6 +670,17 @@ export default function StudentHomePage() {
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        name="full-name-field"
+                        data-form-type="other"
+                        data-lp-ignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
+                        data-kwimpalastatus="ignore"
+                        formNoValidate
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                         placeholder="e.g., Juan Dela Cruz"
                       />
@@ -710,6 +732,17 @@ export default function StudentHomePage() {
                             required
                             min="2000"
                             max={new Date().getFullYear()}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            name="graduation-year-field"
+                            data-form-type="other"
+                            data-lp-ignore="true"
+                            data-1p-ignore="true"
+                            data-bwignore="true"
+                            data-kwimpalastatus="ignore"
+                            formNoValidate
                             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                             placeholder="e.g., 2023"
                           />
@@ -725,6 +758,17 @@ export default function StudentHomePage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        name="email-address-field"
+                        data-form-type="other"
+                        data-lp-ignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
+                        data-kwimpalastatus="ignore"
+                        formNoValidate
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                         placeholder="student@sorsu.edu.ph"
                       />
@@ -738,6 +782,17 @@ export default function StudentHomePage() {
                         value={contactNumber}
                         onChange={(e) => setContactNumber(e.target.value)}
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        name="contact-number-field"
+                        data-form-type="other"
+                        data-lp-ignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
+                        data-kwimpalastatus="ignore"
+                        formNoValidate
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                         placeholder="09XXXXXXXXX"
                       />
@@ -899,6 +954,17 @@ export default function StudentHomePage() {
                                       [request.id]: e.target.value,
                                     }))
                                   }
+                                  autoComplete="off"
+                                  autoCorrect="off"
+                                  autoCapitalize="off"
+                                  spellCheck="false"
+                                  name="decryption-key-field"
+                                  data-form-type="password"
+                                  data-lp-ignore="true"
+                                  data-1p-ignore="true"
+                                  data-bwignore="true"
+                                  data-kwimpalastatus="ignore"
+                                  formNoValidate
                                   className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                                 />
                                 <button
@@ -1213,6 +1279,17 @@ export default function StudentHomePage() {
                     value={passwordForDecryption}
                     onChange={(e) => setPasswordForDecryption(e.target.value)}
                     placeholder="Enter your account password"
+                    autoComplete="current-password"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    name="account-password-field"
+                    data-form-type="password"
+                    data-lp-ignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-kwimpalastatus="ignore"
+                    formNoValidate
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
                     autoFocus
                   />

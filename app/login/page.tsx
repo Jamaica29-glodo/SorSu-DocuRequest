@@ -105,6 +105,17 @@ export default function LoginPage() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
+                  autoComplete="username"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  name="identifier-field"
+                  data-form-type="login"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition"
                   placeholder="2021-0000-X or email@sorsu.edu.ph"
                 />
@@ -125,6 +136,17 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  name="password-field"
+                  data-form-type="password"
+                  data-lp-ignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-kwimpalastatus="ignore"
+                  formNoValidate
                   className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-sorsuMaroon focus:border-sorsuMaroon text-sm transition"
                   placeholder="••••••••"
                 />

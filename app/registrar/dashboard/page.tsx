@@ -1230,6 +1230,17 @@ export default function RegistrarDashboardPage() {
                               placeholder="Search requests..."
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
+                              autoComplete="off"
+                              autoCorrect="off"
+                              autoCapitalize="off"
+                              spellCheck="false"
+                              name="search-requests-field"
+                              data-form-type="other"
+                              data-lp-ignore="true"
+                              data-1p-ignore="true"
+                              data-bwignore="true"
+                              data-kwimpalastatus="ignore"
+                              formNoValidate
                               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent w-full sm:w-64"
                             />
                           </div>
@@ -1389,6 +1400,17 @@ export default function RegistrarDashboardPage() {
                                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
                                           placeholder="Enter cancellation reason..."
                                           required
+                                          autoComplete="off"
+                                          autoCorrect="off"
+                                          autoCapitalize="off"
+                                          spellCheck="false"
+                                          name="cancellation-reason-field"
+                                          data-form-type="other"
+                                          data-lp-ignore="true"
+                                          data-1p-ignore="true"
+                                          data-bwignore="true"
+                                          data-kwimpalastatus="ignore"
+                                          formNoValidate
                                         />
                                       </div>
                                     )}
@@ -1457,6 +1479,17 @@ export default function RegistrarDashboardPage() {
                                         onChange={handleKeyChange}
                                         className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-all duration-200"
                                         placeholder="Enter or generate decryption key..."
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="off"
+                                        spellCheck="false"
+                                        name="decryption-key-field"
+                                        data-form-type="password"
+                                        data-lp-ignore="true"
+                                        data-1p-ignore="true"
+                                        data-bwignore="true"
+                                        data-kwimpalastatus="ignore"
+                                        formNoValidate
                                       />
                                       <button
                                         type="button"
@@ -1660,6 +1693,17 @@ export default function RegistrarDashboardPage() {
                             placeholder="Search by name, student ID, or email..."
                             value={studentSearchTerm}
                             onChange={(e) => setStudentSearchTerm(e.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            name="search-students-field"
+                            data-form-type="other"
+                            data-lp-ignore="true"
+                            data-1p-ignore="true"
+                            data-bwignore="true"
+                            data-kwimpalastatus="ignore"
+                            formNoValidate
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
                           />
                         </div>
@@ -1897,6 +1941,17 @@ export default function RegistrarDashboardPage() {
                             placeholder="Search by student ID or name..."
                             value={studentIDSearchTerm}
                             onChange={(e) => setStudentIDSearchTerm(e.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            name="search-student-ids-field"
+                            data-form-type="other"
+                            data-lp-ignore="true"
+                            data-1p-ignore="true"
+                            data-bwignore="true"
+                            data-kwimpalastatus="ignore"
+                            formNoValidate
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent"
                           />
                         </div>
@@ -2393,6 +2448,17 @@ export default function RegistrarDashboardPage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter student ID..."
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    name="add-student-id-field"
+                    data-form-type="other"
+                    data-lp-ignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-kwimpalastatus="ignore"
+                    formNoValidate
                   />
                 </div>
                 
@@ -2406,6 +2472,17 @@ export default function RegistrarDashboardPage() {
                     onChange={(e) => setIdFormData(prev => ({ ...prev, notes: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter student name..."
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    name="add-student-name-field"
+                    data-form-type="other"
+                    data-lp-ignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-kwimpalastatus="ignore"
+                    formNoValidate
                   />
                 </div>
                 
@@ -2488,6 +2565,17 @@ export default function RegistrarDashboardPage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                     placeholder="Enter student ID..."
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    name="edit-student-id-field"
+                    data-form-type="other"
+                    data-lp-ignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-kwimpalastatus="ignore"
+                    formNoValidate
                   />
                 </div>
                 
@@ -2501,6 +2589,17 @@ export default function RegistrarDashboardPage() {
                     onChange={(e) => setIdFormData(prev => ({ ...prev, notes: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                     placeholder="Enter student name..."
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    name="edit-student-name-field"
+                    data-form-type="other"
+                    data-lp-ignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-kwimpalastatus="ignore"
+                    formNoValidate
                   />
                 </div>
                 
