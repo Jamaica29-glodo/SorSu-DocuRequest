@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Eye, EyeOff, Lock, User, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
+import PWAInstall from "@/components/ui/PWAInstall";
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
@@ -165,6 +166,10 @@ export default function LoginPage() {
       <p className="mt-8 text-xs text-gray-400 uppercase tracking-widest">
         Official Document Request Portal
       </p>
+      
+      <div className="mt-4 flex justify-center">
+        <PWAInstall />
+      </div>
     </div>
   );
 }

@@ -1,0 +1,28 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="maroonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B1538;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6B1028;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="120" fill="url(#maroonGradient)"/>
+  
+  <!-- Document Icon -->
+  <rect x="140" y="100" width="232" height="300" rx="8" fill="white" opacity="0.95"/>
+  
+  <!-- Document Lines -->
+  <rect x="170" y="140" width="172" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="170" width="172" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="200" width="120" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="230" width="150" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="260" width="140" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="290" width="160" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="320" width="130" height="8" rx="4" fill="#8B1538"/>
+  <rect x="170" y="350" width="145" height="8" rx="4" fill="#8B1538"/>
+  
+  <!-- Sorsogon State University Text -->
+  <text x="256" y="440" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle">SorSU</text>
+  <text x="256" y="465" font-family="Arial, sans-serif" font-size="14" fill="white" text-anchor="middle" opacity="0.9">Docs</text>
+</svg>

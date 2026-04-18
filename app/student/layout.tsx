@@ -7,6 +7,7 @@ import { Home, User, Bell, FileText, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import LogoutConfirmationModal from "@/components/ui/LogoutConfirmationModal";
+import PWAInstall from "@/components/ui/PWAInstall";
 
 export default function StudentLayout({
   children,
@@ -85,6 +86,11 @@ export default function StudentLayout({
                 </Link>
               );
             })}
+            
+            {/* PWA Install Button */}
+            <div className="pt-4 border-t border-gray-200">
+              <PWAInstall />
+            </div>
           </nav>
 
           {/* Sign Out Button */}
@@ -181,6 +187,11 @@ export default function StudentLayout({
                   </Link>
                 );
               })}
+              
+              {/* Mobile PWA Install Button */}
+              <div className="pt-4 border-t border-gray-200">
+                <PWAInstall />
+              </div>
             </nav>
 
             {/* Mobile Sign Out */}

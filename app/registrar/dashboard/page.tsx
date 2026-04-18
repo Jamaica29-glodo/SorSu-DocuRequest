@@ -46,6 +46,7 @@ import {
 import { supabase } from "@/app/lib/supabaseClient";
 import { encryptAesGcm, uint8ToBase64 } from "@/app/lib/aesGcm";
 import LogoutConfirmationModal from "@/components/ui/LogoutConfirmationModal";
+import PWAInstall from "@/components/ui/PWAInstall";
 
 type RequestRow = {
   id: string;
@@ -1016,6 +1017,7 @@ export default function RegistrarDashboardPage() {
               <Shield className="h-4 w-4 text-emerald-600" />
               <span className="text-xs font-semibold text-emerald-700">{registrarName}</span>
             </div>
+            <PWAInstall />
             <button
               type="button"
               onClick={handleSignOut}
