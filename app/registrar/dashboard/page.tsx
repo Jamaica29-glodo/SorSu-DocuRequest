@@ -363,6 +363,7 @@ export default function RegistrarDashboardPage() {
     const transformedData = (data as RegistrarViewRow[] || []).map((row) => ({
       ...row,
       student_id: row.school_id,
+      updated_at: row.created_at,
       profiles: {
         full_name: row.full_name,
         email_address: row.email_address,
