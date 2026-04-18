@@ -54,6 +54,7 @@ type RequestRow = {
   document_type: string;
   status: string;
   created_at: string;
+  updated_at: string;
   year_level: string | null;
   verification_url: string | null;
   encrypted_file_bucket: string | null;
@@ -1008,8 +1009,8 @@ export default function RegistrarDashboardPage() {
               />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-sorsuMaroon bg-clip-text text-transparent">Registrar Portal</h1>
-              <p className="text-xs text-gray-500 hidden md:block">Document & Student Management System</p>
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-sorsuMaroon bg-clip-text text-transparent font-playfair">Registrar Portal</h1>
+              <p className="text-xs text-gray-500 hidden md:block font-inter">Document & Student Management System</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1100,13 +1101,13 @@ export default function RegistrarDashboardPage() {
             {showStats && (
               <div className="px-4 py-6 bg-gradient-to-r from-sorsuMaroon/5 to-transparent border-b border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 font-inter">
                     <TrendingUp className="h-4 w-4 text-sorsuMaroon" />
                     Overview Statistics
                   </h2>
                   <button
                     onClick={() => setShowStats(!showStats)}
-                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-inter"
                   >
                     Hide
                   </button>
@@ -1117,7 +1118,7 @@ export default function RegistrarDashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider">Total Requests</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Total Requests</p>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                         <FileText className="h-5 w-5 text-blue-600" />
@@ -1128,7 +1129,7 @@ export default function RegistrarDashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-amber-700">{stats.pending}</p>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider">Pending</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Pending</p>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
                         <Clock className="h-5 w-5 text-amber-600" />
@@ -1139,7 +1140,7 @@ export default function RegistrarDashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-blue-700">{stats.processing}</p>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider">Processing</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Processing</p>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                         <Loader2 className="h-5 w-5 text-blue-600" />
@@ -1150,7 +1151,7 @@ export default function RegistrarDashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-purple-700">{stats.ready}</p>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider">Ready</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Ready</p>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
                         <FileCheck className="h-5 w-5 text-purple-600" />
@@ -1161,7 +1162,7 @@ export default function RegistrarDashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-emerald-700">{stats.completed}</p>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider">Completed</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Completed</p>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
                         <CheckCircle className="h-5 w-5 text-emerald-600" />
@@ -1176,7 +1177,7 @@ export default function RegistrarDashboardPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-2xl font-bold text-indigo-700">{adminStats.total_students}</p>
-                            <p className="text-xs text-gray-500 uppercase tracking-wider">Total Students</p>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Total Students</p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
                             <Users className="h-5 w-5 text-indigo-600" />
@@ -1187,7 +1188,7 @@ export default function RegistrarDashboardPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-2xl font-bold text-yellow-700">{adminStats.pending_approvals}</p>
-                            <p className="text-xs text-gray-500 uppercase tracking-wider">Pending Approval</p>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Pending Approval</p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
                             <AlertCircle className="h-5 w-5 text-yellow-600" />
@@ -1198,7 +1199,7 @@ export default function RegistrarDashboardPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-2xl font-bold text-teal-700">{adminStats.total_student_ids}</p>
-                            <p className="text-xs text-gray-500 uppercase tracking-wider">Student IDs</p>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-inter">Student IDs</p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center">
                             <Shield className="h-5 w-5 text-teal-600" />
@@ -1219,7 +1220,7 @@ export default function RegistrarDashboardPage() {
                     {/* Header with filters */}
                     <div className="p-6 border-b border-gray-200">
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <h2 className="text-lg font-semibold text-gray-900">Student Document Requests</h2>
+                        <h2 className="text-lg font-semibold text-gray-900 font-playfair">Student Document Requests</h2>
                         <div className="flex flex-col sm:flex-row gap-4">
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1255,7 +1256,7 @@ export default function RegistrarDashboardPage() {
                           {selectedRequest && !isTransitioning ? (
                             <div className="p-6 h-full overflow-y-auto animate-fadeIn">
                               <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-gray-900">Request Details</h3>
+                                <h3 className="text-xl font-bold text-gray-900 font-playfair">Request Details</h3>
                                 <button
                                   onClick={() => setSelectedRequestId("")}
                                   className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -1266,29 +1267,29 @@ export default function RegistrarDashboardPage() {
                               
                               {/* Student Information Card */}
                               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 mb-6 transform transition-all duration-300 ease-in-out hover:shadow-lg">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase font-playfair">
                                   <User className="h-5 w-5 text-blue-600" />
                                   Student Information
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Full Name</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Full Name</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.profiles?.full_name || "N/A"}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Student ID</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Student ID</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.profiles?.student_id || "N/A"}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Email Address</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Email Address</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.profiles?.email_address || "N/A"}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Contact Number</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Contact Number</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.profiles?.contact_number || "N/A"}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 md:col-span-2 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Course Program</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Course Program</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.profiles?.course_program || "N/A"}</p>
                                   </div>
                                 </div>
@@ -1296,21 +1297,21 @@ export default function RegistrarDashboardPage() {
                               
                               {/* Request Information Card */}
                               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 mb-6 transform transition-all duration-300 ease-in-out hover:shadow-lg">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase font-playfair">
                                   <FileText className="h-5 w-5 text-green-600" />
                                   Request Information
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Request ID</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Request ID</p>
                                     <p className="font-semibold text-gray-900">#{selectedRequest.id.slice(-8)}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Document Type</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Document Type</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.document_type}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Year Level</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Year Level</p>
                                     <p className="font-semibold text-gray-900">{selectedRequest.year_level || "N/A"}</p>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 transform transition-all duration-200 hover:scale-105">
@@ -1321,7 +1322,7 @@ export default function RegistrarDashboardPage() {
                                     </span>
                                   </div>
                                   <div className="bg-white/70 rounded-lg p-4 md:col-span-2 transform transition-all duration-200 hover:scale-105">
-                                    <p className="text-sm text-gray-500 mb-1">Date Requested</p>
+                                    <p className="text-sm text-gray-500 mb-1 font-inter">Date Requested</p>
                                     <p className="font-semibold text-gray-900">{new Date(selectedRequest.created_at).toLocaleDateString()}</p>
                                   </div>
                                 </div>
@@ -1330,12 +1331,12 @@ export default function RegistrarDashboardPage() {
                               {/* Identity Verification Section */}
                               {getVerificationUrl(selectedRequest.verification_url) && (
                                 <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200 mb-6 transform transition-all duration-300 ease-in-out hover:shadow-lg animate-slideDown">
-                                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                  <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase font-playfair">
                                     <Shield className="h-5 w-5 text-purple-600" />
                                     Identity Verification
                                   </h4>
                                   <div className="bg-white/70 rounded-lg p-4">
-                                    <p className="text-sm text-gray-500 mb-3">Verification Document</p>
+                                    <p className="text-sm text-gray-500 mb-3 font-inter">Verification Document</p>
                                     <a
                                       href={getVerificationUrl(selectedRequest.verification_url)!}
                                       target="_blank"
@@ -1353,10 +1354,13 @@ export default function RegistrarDashboardPage() {
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slideUp">
                                 {/* Status Update Form */}
                                 <form onSubmit={handleUpdateStatus} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm transform transition-all duration-300 ease-in-out hover:shadow-lg">
-                                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Update Request Status</h4>
+                                  <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase font-playfair">
+                                    <RefreshCw className="h-5 w-5 text-red-500" />
+                                    Update Status
+                                  </h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
                                         New Status
                                       </label>
                                       <select
@@ -1374,7 +1378,7 @@ export default function RegistrarDashboardPage() {
                                     
                                     {statusToSet === "Cancelled" && (
                                       <div className="animate-fadeIn">
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
                                           Cancellation Reason
                                         </label>
                                         <input
@@ -1392,7 +1396,7 @@ export default function RegistrarDashboardPage() {
                                   <button
                                     type="submit"
                                     disabled={updatingStatus}
-                                    className="w-full bg-sorsuMaroon text-white px-6 py-3 rounded-lg hover:bg-sorsuMaroon/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] font-medium"
+                                    className="w-full bg-black text-white px-6 py-3 rounded-lg hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] font-medium"
                                   >
                                     {updatingStatus ? (
                                       <div className="flex items-center justify-center gap-2">
@@ -1400,17 +1404,23 @@ export default function RegistrarDashboardPage() {
                                         <span>Updating Status...</span>
                                       </div>
                                     ) : (
-                                      "Update Status"
+                                      <div className="flex items-center justify-center gap-2">
+                                        <RefreshCw className="h-4 w-4 text-red-500" />
+                                        <span>Update Status</span>
+                                      </div>
                                     )}
                                   </button>
                                 </form>
                                 
                                 {/* Document Upload Form */}
                                 <form onSubmit={handleUploadEncryptedDocument} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm transform transition-all duration-300 ease-in-out hover:shadow-lg">
-                                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Upload Document</h4>
+                                  <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase font-playfair">
+                                    <Shield className="h-5 w-5 text-red-500" />
+                                    Secure Upload
+                                  </h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
                                         Select File
                                       </label>
                                       <input
@@ -1421,7 +1431,7 @@ export default function RegistrarDashboardPage() {
                                     </div>
                                     
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
                                         Status After Upload
                                       </label>
                                       <select
@@ -1469,7 +1479,7 @@ export default function RegistrarDashboardPage() {
                                   <button
                                     type="submit"
                                     disabled={uploading}
-                                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] font-medium"
+                                    className="w-full bg-sorsuMaroon text-white px-6 py-3 rounded-lg hover:bg-sorsuMaroon/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] font-medium"
                                   >
                                     {uploading ? (
                                       <div className="flex items-center justify-center gap-2">
@@ -1477,25 +1487,44 @@ export default function RegistrarDashboardPage() {
                                         <span>Uploading Document...</span>
                                       </div>
                                     ) : (
-                                      "Upload Document"
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Upload className="h-4 w-4" />
+                                        <span>Encrypt & Upload</span>
+                                      </div>
                                     )}
                                   </button>
                                 </form>
+                                
+                                {/* Secure Document Upload Notification */}
+                                {selectedRequest.status === "Completed" && selectedRequest.encrypted_file_bucket && selectedRequest.encrypted_file_path && selectedRequest.original_file_name && (
+                                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-6 animate-slideUp">
+                                    <div className="flex items-start gap-3">
+                                      <FileCheck className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1">
+                                        <h5 className="font-bold text-green-900 mb-2 font-playfair">SECURE DOCUMENT UPLOADED</h5>
+                                        <div className="space-y-1 text-sm text-green-800">
+                                          <p><span className="font-semibold">Date:</span> {selectedRequest.updated_at ? new Date(selectedRequest.updated_at).toLocaleDateString() : new Date(selectedRequest.created_at).toLocaleDateString()}</p>
+                                          <p><span className="font-semibold">File:</span> {selectedRequest.original_file_name}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ) : isTransitioning ? (
                             <div className="flex items-center justify-center h-full p-6">
                               <div className="text-center">
                                 <Loader2 className="h-8 w-8 text-blue-600 mx-auto mb-4 animate-spin" />
-                                <p className="text-sm text-gray-500">Loading request details...</p>
+                                <p className="text-sm text-gray-500 font-inter">Loading request details...</p>
                               </div>
                             </div>
                           ) : (
                             <div className="flex items-center justify-center h-full p-6 animate-fadeIn">
                               <div className="text-center">
                                 <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                                <p className="text-lg font-medium text-gray-900 mb-2">Select a Request</p>
-                                <p className="text-sm text-gray-500">Choose a document request from the list to view details</p>
+                                <p className="text-lg font-medium text-gray-900 mb-2 font-inter">Select a Request</p>
+                                <p className="text-sm text-gray-500 font-inter">Choose a document request from the list to view details</p>
                               </div>
                             </div>
                           )}
@@ -1505,16 +1534,16 @@ export default function RegistrarDashboardPage() {
                       {/* Right Side - Request List */}
                       <div className="w-full lg:w-96 lg:min-w-96">
                         <div className="p-4 border-b border-gray-200">
-                          <h3 className="font-semibold text-gray-900">Request List</h3>
-                          <p className="text-sm text-gray-500">{filteredRequests.length} requests</p>
+                          <h3 className="font-semibold text-gray-900 font-playfair">Request List</h3>
+                          <p className="text-sm text-gray-500 font-inter">{filteredRequests.length} requests</p>
                         </div>
                         
                         <div className="overflow-y-auto h-[calc(100vh-380px)] custom-scrollbar">
                           {filteredRequests.length === 0 ? (
                             <div className="p-6 text-center text-gray-500">
                               <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                              <p className="text-lg font-medium text-gray-900 mb-2">No document requests found</p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-lg font-medium text-gray-900 mb-2 font-inter">No document requests found</p>
+                              <p className="text-sm text-gray-500 font-inter">
                                 {searchTerm || filterStatus !== "all" 
                                   ? "Try adjusting your search or filter criteria" 
                                   : "No student document requests have been submitted yet"}
@@ -1606,7 +1635,7 @@ export default function RegistrarDashboardPage() {
                   <div className="bg-white rounded-lg shadow">
                     {/* Header with Add Student Button */}
                     <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                      <h2 className="text-lg font-semibold text-gray-900">Student Management</h2>
+                      <h2 className="text-lg font-semibold text-gray-900 font-playfair">Student Management</h2>
                       <button
                         onClick={() => {
                           setSelectedStudent(null);
@@ -1840,7 +1869,7 @@ export default function RegistrarDashboardPage() {
                   <div className="bg-white rounded-lg shadow">
                     {/* Header with Add Student ID Button */}
                     <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                      <h2 className="text-lg font-semibold text-gray-900">Student ID Management</h2>
+                      <h2 className="text-lg font-semibold text-gray-900 font-playfair">Student ID Management</h2>
                       <button
                         onClick={() => {
                           setIdFormData({
