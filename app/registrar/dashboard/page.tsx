@@ -16,22 +16,12 @@ import {
   Key,
   Copy,
   RefreshCw,
-  FileLock,
-  ShieldCheck,
   User,
-  Mail,
-  Phone,
-  BookOpen,
-  ChevronLeft,
-  Calendar,
   ExternalLink,
-  Filter,
   TrendingUp,
   Users,
   FileCheck,
-  Activity,
   UserCheck,
-  UserX,
   Ban,
   Eye,
   Shield,
@@ -171,6 +161,12 @@ export default function RegistrarDashboardPage() {
   const [showStats, setShowStats] = useState(true);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   
+  // Summary details modal state
+  const [showSummaryDetails, setShowSummaryDetails] = useState(false);
+  const [summaryType, setSummaryType] = useState<string>("");
+  const [summaryCurrentPage, setSummaryCurrentPage] = useState(1);
+  const [summaryItemsPerPage] = useState(10);
+  
   // Admin functionality states
   const [activeTab, setActiveTab] = useState<"requests" | "students" | "student-ids" | "analytics">("requests");
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -232,9 +228,47 @@ export default function RegistrarDashboardPage() {
     }, 150);
   }, [selectedRequestId]);
 
+  // Handle summary card click
+  const handleSummaryCardClick = (type: string) => {
+    setSummaryType(type);
+    setSummaryCurrentPage(1);
+    setShowSummaryDetails(true);
+  };
+
+  // Get filtered data for summary details
+  const getSummaryData = useMemo(() => {
+    switch (summaryType) {
+      case "total":
+        return requests;
+      case "pending":
+        return requests.filter(r => r.status === "Pending");
+      case "processing":
+        return requests.filter(r => r.status === "On Process");
+      case "ready":
+        return requests.filter(r => r.status === "Ready for Pick-up");
+      case "completed":
+        return requests.filter(r => r.status === "Completed");
+      case "total_students":
+        return students;
+      case "pending_approvals":
+        return students.filter(s => !s.is_approved);
+      case "student_ids":
+        return studentIDs;
+      default:
+        return [];
+    }
+  }, [summaryType, requests, students, studentIDs]);
+
+  // Pagination for summary details
+  const summaryTotalPages = Math.ceil(getSummaryData.length / summaryItemsPerPage);
+  const paginatedSummaryData = getSummaryData.slice(
+    (summaryCurrentPage - 1) * summaryItemsPerPage,
+    summaryCurrentPage * summaryItemsPerPage
+  );
+
   // Helper function to get correct verification URL
   const getVerificationUrl = (verificationUrl: string | null) => {
-    if (!verificationUrl) return null;
+    if (!verificationUrl) return undefined;
     
     // If it's already an API route, return as is
     if (verificationUrl.startsWith('/api/identity-verifications/')) {
@@ -1115,7 +1149,10 @@ export default function RegistrarDashboardPage() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-8 gap-3">
                   {/* Document Request Stats */}
-                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-gray-200/50 hover:shadow-md transition-all duration-200">
+                  <div 
+                    className="bg-white/70 backdrop-blur rounded-xl p-3 border border-gray-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                    onClick={() => handleSummaryCardClick("total")}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -1126,7 +1163,10 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-amber-200/50 hover:shadow-md transition-all duration-200">
+                  <div 
+                    className="bg-white/70 backdrop-blur rounded-xl p-3 border border-amber-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                    onClick={() => handleSummaryCardClick("pending")}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-amber-700">{stats.pending}</p>
@@ -1137,7 +1177,10 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-blue-200/50 hover:shadow-md transition-all duration-200">
+                  <div 
+                    className="bg-white/70 backdrop-blur rounded-xl p-3 border border-blue-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                    onClick={() => handleSummaryCardClick("processing")}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-blue-700">{stats.processing}</p>
@@ -1148,7 +1191,10 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-purple-200/50 hover:shadow-md transition-all duration-200">
+                  <div 
+                    className="bg-white/70 backdrop-blur rounded-xl p-3 border border-purple-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                    onClick={() => handleSummaryCardClick("ready")}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-purple-700">{stats.ready}</p>
@@ -1159,7 +1205,10 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-emerald-200/50 hover:shadow-md transition-all duration-200">
+                  <div 
+                    className="bg-white/70 backdrop-blur rounded-xl p-3 border border-emerald-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                    onClick={() => handleSummaryCardClick("completed")}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-bold text-emerald-700">{stats.completed}</p>
@@ -1174,7 +1223,10 @@ export default function RegistrarDashboardPage() {
                   {/* Admin Stats */}
                   {adminStats && (
                     <>
-                      <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-indigo-200/50 hover:shadow-md transition-all duration-200">
+                      <div 
+                        className="bg-white/70 backdrop-blur rounded-xl p-3 border border-indigo-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                        onClick={() => handleSummaryCardClick("total_students")}
+                      >
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-2xl font-bold text-indigo-700">{adminStats.total_students}</p>
@@ -1185,7 +1237,10 @@ export default function RegistrarDashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-yellow-200/50 hover:shadow-md transition-all duration-200">
+                      <div 
+                        className="bg-white/70 backdrop-blur rounded-xl p-3 border border-yellow-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                        onClick={() => handleSummaryCardClick("pending_approvals")}
+                      >
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-2xl font-bold text-yellow-700">{adminStats.pending_approvals}</p>
@@ -1196,7 +1251,10 @@ export default function RegistrarDashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="bg-white/70 backdrop-blur rounded-xl p-3 border border-teal-200/50 hover:shadow-md transition-all duration-200">
+                      <div 
+                        className="bg-white/70 backdrop-blur rounded-xl p-3 border border-teal-200/50 hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                        onClick={() => handleSummaryCardClick("student_ids")}
+                      >
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-2xl font-bold text-teal-700">{adminStats.total_student_ids}</p>
@@ -1209,6 +1267,21 @@ export default function RegistrarDashboardPage() {
                       </div>
                     </>
                   )}
+                </div>
+              </div>
+            )}
+            
+            {/* Show Statistics Button (when stats are hidden) */}
+            {!showStats && (
+              <div className="px-4 py-3 bg-gradient-to-r from-sorsuMaroon/5 to-transparent border-b border-gray-100">
+                <div className="flex items-center justify-center">
+                  <button
+                    onClick={() => setShowStats(true)}
+                    className="text-xs text-sorsuMaroon hover:text-sorsuMaroon/80 transition-colors font-inter flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-sorsuMaroon/10"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    Show Overview Statistics
+                  </button>
                 </div>
               </div>
             )}
@@ -2795,6 +2868,290 @@ export default function RegistrarDashboardPage() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Summary Details Modal */}
+      {showSummaryDetails && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowSummaryDetails(false)}
+          >
+            <div 
+              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-sorsuMaroon to-sorsuMaroon/90 text-white p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold font-playfair capitalize">
+                      {summaryType.replace(/_/g, ' ')} Details
+                    </h2>
+                    <p className="text-sm opacity-90 mt-1">
+                      Total: {getSummaryData.length} items
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowSummaryDetails(false)}
+                    className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/20 transition-colors"
+                  >
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+                {paginatedSummaryData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 mb-4">
+                      <FileText className="h-16 w-16 mx-auto" />
+                    </div>
+                    <p className="text-gray-500">No data available</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {paginatedSummaryData.map((item: RequestRow | StudentProfile | StudentID) => {
+                      // Request Data
+                      if (summaryType === 'total' || summaryType === 'pending' || summaryType === 'processing' || summaryType === 'ready' || summaryType === 'completed') {
+                        const requestItem = item as RequestRow;
+                        return (
+                          <div 
+                            key={requestItem.id}
+                            className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {requestItem.document_type || 'N/A'}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    ID: {requestItem.id}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[requestItem.status] || 'bg-gray-100 text-gray-800'}`}>
+                                    {requestItem.status}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">Student:</span>
+                                  <p className="font-medium text-gray-900">{requestItem.profiles?.full_name || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Student ID:</span>
+                                  <p className="font-medium text-gray-900">{requestItem.profiles?.student_id || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Email:</span>
+                                  <p className="font-medium text-gray-900 text-xs truncate">{requestItem.profiles?.email_address || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Course:</span>
+                                  <p className="font-medium text-gray-900">{requestItem.profiles?.course_program || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Contact:</span>
+                                  <p className="font-medium text-gray-900">{requestItem.profiles?.contact_number || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Year Level:</span>
+                                  <p className="font-medium text-gray-900">{requestItem.year_level || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Created:</span>
+                                  <p className="font-medium text-gray-900">{new Date(requestItem.created_at).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Updated:</span>
+                                  <p className="font-medium text-gray-900">{new Date(requestItem.updated_at).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Verification:</span>
+                                  <p className="font-medium text-gray-900">
+                                    {requestItem.verification_url ? (
+                                      <a 
+                                        href={getVerificationUrl(requestItem.verification_url)} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        View File
+                                      </a>
+                                    ) : 'N/A'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // Student Data
+                      if (summaryType === 'total_students' || summaryType === 'pending_approvals') {
+                        const studentItem = item as StudentProfile;
+                        return (
+                          <div 
+                            key={studentItem.id}
+                            className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {studentItem.full_name || 'N/A'}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    ID: {studentItem.student_id}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  {studentItem.is_approved ? (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Approved
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                      Pending
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">Email:</span>
+                                  <p className="font-medium text-gray-900 text-xs truncate">{studentItem.email_address || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Course:</span>
+                                  <p className="font-medium text-gray-900">{studentItem.course_program || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Contact:</span>
+                                  <p className="font-medium text-gray-900">{studentItem.contact_number || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Registered:</span>
+                                  <p className="font-medium text-gray-900">{new Date(studentItem.created_at).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // Student ID Data
+                      if (summaryType === 'student_ids') {
+                        const studentIdItem = item as StudentID;
+                        return (
+                          <div 
+                            key={studentIdItem.id}
+                            className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {studentIdItem.student_id || 'N/A'}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    ID: {studentIdItem.id}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  {studentIdItem.is_active ? (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      Inactive
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">Notes:</span>
+                                  <p className="font-medium text-gray-900">{studentIdItem.notes || 'No notes'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Created:</span>
+                                  <p className="font-medium text-gray-900">{new Date(studentIdItem.created_at).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      return null;
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {summaryTotalPages > 1 && (
+                <div className="border-t border-gray-200 p-4 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing {((summaryCurrentPage - 1) * summaryItemsPerPage) + 1} to {Math.min(summaryCurrentPage * summaryItemsPerPage, getSummaryData.length)} of {getSummaryData.length} results
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSummaryCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={summaryCurrentPage === 1}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(summaryTotalPages, 5) }, (_, i: number) => {
+                          let pageNum: number;
+                          if (summaryTotalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (summaryCurrentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (summaryCurrentPage >= summaryTotalPages - 2) {
+                            pageNum = summaryTotalPages - 4 + i;
+                          } else {
+                            pageNum = summaryCurrentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setSummaryCurrentPage(pageNum)}
+                              className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                                summaryCurrentPage === pageNum
+                                  ? 'bg-sorsuMaroon text-white'
+                                  : 'border border-gray-300 hover:bg-gray-100'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setSummaryCurrentPage(prev => Math.min(prev + 1, summaryTotalPages))}
+                        disabled={summaryCurrentPage === summaryTotalPages}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>

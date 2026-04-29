@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, User, Bell, FileText, Menu, X, LogOut } from "lucide-react";
-import { useState } from "react";
+import { Home, Bell, FileText, Menu, X, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import LogoutConfirmationModal from "@/components/ui/LogoutConfirmationModal";
 import PWAInstall from "@/components/ui/PWAInstall";
@@ -18,12 +18,12 @@ export default function StudentLayout({
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const navItems = [
     { href: "/student/home", label: "Home", icon: Home },
     { href: "/student/requirements", label: "Requirements", icon: FileText },
     { href: "/student/notifications", label: "Updates", icon: Bell },
-    { href: "/student/profile", label: "Profile", icon: User },
   ];
 
   const handleSignOut = async () => {
@@ -34,6 +34,65 @@ export default function StudentLayout({
     await supabase.auth.signOut();
     router.push("/login");
   };
+
+  // Fetch unread notifications count
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const fetchUnreadCount = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      // Fetch initial unread count
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      if (!error) {
+        setUnreadCount(data?.length || 0);
+      }
+
+      // Setup real-time subscription for new notifications
+      channel = supabase
+        .channel("unread-count")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.eventType === "INSERT" && !payload.new.is_read) {
+              setUnreadCount((prev) => prev + 1);
+            } else if (payload.eventType === "UPDATE") {
+              if (payload.old.is_read && !payload.new.is_read) {
+                setUnreadCount((prev) => prev + 1);
+              } else if (!payload.old.is_read && payload.new.is_read) {
+                setUnreadCount((prev) => Math.max(0, prev - 1));
+              }
+            } else if (payload.eventType === "DELETE" && !payload.old.is_read) {
+              setUnreadCount((prev) => Math.max(0, prev - 1));
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    fetchUnreadCount();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-gray-50 transition-colors duration-300">
@@ -71,6 +130,9 @@ export default function StudentLayout({
           <nav className="flex-1 px-4 space-y-1">
             {navItems.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href;
+              const isNotificationsPage = href === "/student/notifications";
+              const hasUnread = isNotificationsPage && unreadCount > 0;
+              
               return (
                 <Link
                   key={href}
@@ -81,8 +143,24 @@ export default function StudentLayout({
                       : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 >
-                  <Icon className={`mr-3 h-5 w-5 ${isActive ? "text-white" : "text-gray-400 group-hover:text-gray-500"}`} />
-                  {label}
+                  <div className="relative mr-3">
+                    <Icon className={`h-5 w-5 ${isActive ? "text-white" : "text-gray-400 group-hover:text-gray-500"}`} />
+                    {hasUnread && (
+                      <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {label}
+                    {hasUnread && (
+                      <span className={`inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full ${
+                        isActive 
+                          ? "bg-white text-sorsuMaroon" 
+                          : "bg-red-500 text-white"
+                      }`}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               );
             })}
@@ -171,6 +249,9 @@ export default function StudentLayout({
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
               {navItems.map(({ href, label, icon: Icon }) => {
                 const isActive = pathname === href;
+                const isNotificationsPage = href === "/student/notifications";
+                const hasUnread = isNotificationsPage && unreadCount > 0;
+                
                 return (
                   <Link
                     key={href}
@@ -182,8 +263,24 @@ export default function StudentLayout({
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                     }`}
                   >
-                    <Icon className={`mr-3 h-5 w-5 ${isActive ? "text-white" : "text-gray-400 group-hover:text-gray-500"}`} />
-                    {label}
+                    <div className="relative mr-3">
+                      <Icon className={`h-5 w-5 ${isActive ? "text-white" : "text-gray-400 group-hover:text-gray-500"}`} />
+                      {hasUnread && (
+                        <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {label}
+                      {hasUnread && (
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full ${
+                          isActive 
+                            ? "bg-white text-sorsuMaroon" 
+                            : "bg-red-500 text-white"
+                        }`}>
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </Link>
                 );
               })}
@@ -219,6 +316,9 @@ export default function StudentLayout({
           <div className="grid grid-cols-4 py-2">
             {navItems.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href;
+              const isNotificationsPage = href === "/student/notifications";
+              const hasUnread = isNotificationsPage && unreadCount > 0;
+              
               return (
                 <Link
                   key={href}
@@ -229,8 +329,24 @@ export default function StudentLayout({
                       : "text-gray-500 hover:text-gray-900"
                   }`}
                 >
-                  <Icon className={`h-5 w-5 mb-1 ${isActive ? "fill-current" : ""}`} />
-                  <span className="truncate max-w-full">{label}</span>
+                  <div className="relative mb-1">
+                    <Icon className={`h-5 w-5 ${isActive ? "fill-current" : ""}`} />
+                    {hasUnread && (
+                      <div className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border border-white animate-pulse" />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <span className="truncate max-w-full">{label}</span>
+                    {hasUnread && (
+                      <span className={`ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold rounded-full ${
+                        isActive 
+                          ? "bg-sorsuMaroon text-white" 
+                          : "bg-red-500 text-white"
+                      }`}>
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               );
             })}

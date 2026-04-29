@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CheckCircle, Clock, Loader2, CheckSquare } from "lucide-react";
+import { Bell, CheckCircle, Clock, Loader2, CheckSquare, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 
 type NotificationRow = {
@@ -16,6 +16,10 @@ export default function StudentNotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const ITEMS_PER_PAGE = 15;
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -103,8 +107,36 @@ export default function StudentNotificationsPage() {
     setMarkingAll(false);
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    setDeletingId(notificationId);
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", notificationId);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      // Reset to first page if current page becomes empty
+      const totalNotifications = notifications.filter((n) => n.id !== notificationId).length;
+      const totalPages = Math.ceil(totalNotifications / ITEMS_PER_PAGE);
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+      }
+    }
+    setDeletingId(null);
+  };
+
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  // Pagination calculations
+  const totalPages = Math.ceil(notifications.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedNotifications = notifications.slice(startIndex, endIndex);
+
+  
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -163,55 +195,113 @@ export default function StudentNotificationsPage() {
                 </p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`bg-white rounded-xl shadow-sm border transition-all duration-200 hover:shadow-md ${
-                    notification.is_read
-                      ? "border-gray-200 opacity-75"
-                      : "border-sorsuMaroon bg-maroon-50/10"
-                  }`}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                        notification.is_read
-                          ? "bg-gray-100"
-                          : "bg-sorsuMaroon shadow-lg shadow-maroon-900/20"
-                      }`}>
-                        {notification.is_read ? (
-                          <CheckCircle className="h-5 w-5 text-gray-500" />
-                        ) : (
-                          <Bell className="h-5 w-5 text-white" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <p className={`text-sm leading-relaxed transition-colors ${
-                            notification.is_read ? "text-gray-600" : "text-gray-900 font-medium"
-                          }`}>
-                            {notification.message}
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-gray-500 transition-colors">
-                            <Clock className="h-3 w-3" />
-                            {new Date(notification.created_at).toLocaleString()}
-                          </div>
-                          {!notification.is_read && (
-                            <button
-                              onClick={() => markAsRead(notification.id)}
-                              className="text-xs font-medium text-sorsuMaroon hover:text-maroon-900 transition-colors"
-                            >
-                              Mark as read
-                            </button>
+              <>
+                {paginatedNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`bg-white rounded-xl shadow-sm border transition-all duration-200 hover:shadow-md ${
+                      notification.is_read
+                        ? "border-gray-200 opacity-75"
+                        : "border-sorsuMaroon bg-maroon-50/10"
+                    }`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                          notification.is_read
+                            ? "bg-gray-100"
+                            : "bg-sorsuMaroon shadow-lg shadow-maroon-900/20"
+                        }`}>
+                          {notification.is_read ? (
+                            <CheckCircle className="h-5 w-5 text-gray-500" />
+                          ) : (
+                            <Bell className="h-5 w-5 text-white" />
                           )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <p className={`text-sm leading-relaxed transition-colors ${
+                              notification.is_read ? "text-gray-600" : "text-gray-900 font-medium"
+                            }`}>
+                              {notification.message}
+                            </p>
+                            <button
+                              onClick={() => deleteNotification(notification.id)}
+                              disabled={deletingId === notification.id}
+                              className="flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              aria-label="Delete notification"
+                            >
+                              {deletingId === notification.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <X className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs text-gray-500 transition-colors">
+                              <Clock className="h-3 w-3" />
+                              {new Date(notification.created_at).toLocaleString()}
+                            </div>
+                            {!notification.is_read && (
+                              <button
+                                onClick={() => markAsRead(notification.id)}
+                                className="text-xs font-medium text-sorsuMaroon hover:text-maroon-900 transition-colors"
+                              >
+                                Mark as read
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4 transition-colors">
+                    <div className="text-sm text-gray-600">
+                      Showing {startIndex + 1} to {Math.min(endIndex, notifications.length)} of {notifications.length} notifications
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                              currentPage === page
+                                ? "bg-sorsuMaroon text-white"
+                                : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>

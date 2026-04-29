@@ -21,6 +21,8 @@ import {
   Shield,
   FileCheck,
   X,
+  ChevronLeft,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 
@@ -112,6 +114,40 @@ export default function StudentHomePage() {
   const [keyByRequestId, setKeyByRequestId] = useState<Record<string, string>>({});
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Carousel state
+  const [currentRequestIndex, setCurrentRequestIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+  // Minimum swipe distance (in pixels)
+  const minSwipeDistance = 50;
+
+  // Touch handlers for swipe functionality
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      goToNextRequest();
+    }
+    if (isRightSwipe) {
+      goToPreviousRequest();
+    }
+  };
 
   // Validation modal state
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -478,80 +514,123 @@ export default function StudentHomePage() {
     r.document_type.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  // Carousel navigation functions
+  const goToPreviousRequest = useCallback(() => {
+    setCurrentRequestIndex((prev) => 
+      prev === 0 ? filteredRequests.length - 1 : prev - 1
+    );
+    setIsAutoPlaying(false); // Pause auto-play when user interacts
+  }, [filteredRequests.length]);
+
+  const goToNextRequest = useCallback(() => {
+    setCurrentRequestIndex((prev) => 
+      prev === filteredRequests.length - 1 ? 0 : prev + 1
+    );
+  }, [filteredRequests.length]);
+
+  const goToRequest = useCallback((index: number) => {
+    setCurrentRequestIndex(index);
+    setIsAutoPlaying(false); // Pause auto-play when user interacts
+  }, []);
+
+  // Reset carousel index when requests change
+  useEffect(() => {
+    setCurrentRequestIndex(0);
+  }, [filteredRequests.length]);
+
+  // Auto-play carousel every 3 seconds
+  useEffect(() => {
+    // Only auto-play if there are multiple requests and auto-play is enabled
+    if (filteredRequests.length <= 1 || !isAutoPlaying) return;
+
+    const interval = setInterval(() => {
+      goToNextRequest();
+    }, 3000); // 3 seconds
+
+    return () => clearInterval(interval);
+  }, [filteredRequests.length, currentRequestIndex, goToNextRequest, isAutoPlaying]);
+
   return (
-    <div className="min-h-screen bg-gray-50 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 transition-colors duration-300 overflow-x-hidden max-w-screen">
       {/* Header with SorSU Branding */}
       <div className="bg-gradient-to-r from-sorsuMaroon to-maroon-900 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+            <div className="flex items-center gap-3 sm:gap-4">
               <Image
                 src="/images/sorsu-logo.png"
                 alt="SorSU Logo"
                 width={60}
                 height={60}
-                className="w-16 h-16 rounded-lg bg-white p-2"
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-white p-2"
               />
-              <div>
-                <h1 className="text-2xl font-bold text-white">SorSU Document Request System</h1>
-                <p className="text-maroon-100">Sorsogon State University - Student Portal</p>
+              <div className="text-center sm:text-left">
+                <h1 className="text-lg sm:text-2xl font-bold text-white">SorSU Document Request System</h1>
+                <p className="text-xs sm:text-sm text-maroon-100 hidden sm:block">Sorsogon State University - Student Portal</p>
+                <p className="text-xs text-maroon-100 sm:hidden">Student Portal</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
-              <User className="h-5 w-5" />
-              <span className="font-medium text-white">{fullName || "Student"}</span>
-            </div>
+            <button
+              onClick={() => router.push("/student/profile")}
+              className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 sm:px-4 border border-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer"
+            >
+              <User className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="font-medium text-white text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">{fullName || "Student"}</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 overflow-x-hidden">
         {/* Welcome Section */}
-        <div className="bg-white rounded-xl shadow-lg border border-maroon-100 p-6 mb-8 transition-colors">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {fullName}!</h2>
-              <p className="text-gray-600">Manage your document requests and track their status</p>
-              <div className="flex flex-wrap gap-4 mt-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <BookOpen className="h-4 w-4 text-sorsuMaroon" />
-                  <span className="text-gray-700 font-medium">{courseProgram || "Program not set"}</span>
+        <div className="bg-white rounded-xl shadow-lg border border-maroon-100 p-3 sm:p-6 mb-4 sm:mb-8 transition-colors">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="text-center sm:text-left">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Welcome back, {fullName}!</h2>
+              <p className="text-xs sm:text-base text-gray-600 mb-3 sm:mb-4">Manage your document requests and track their status</p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm">
+                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 text-sorsuMaroon flex-shrink-0" />
+                  <span className="text-gray-700 font-medium truncate">{courseProgram || "Program not set"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-sorsuMaroon" />
-                  <span className="text-gray-700 font-medium">ID: {studentId || "Not set"}</span>
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-sorsuMaroon flex-shrink-0" />
+                  <span className="text-gray-700 font-medium truncate">ID: {studentId || "Not set"}</span>
                 </div>
               </div>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 bg-maroon-50 rounded-lg px-4 py-2 border border-maroon-100">
-              <FileText className="h-5 w-5 text-sorsuMaroon" />
-              <span className="text-maroon-900 font-bold">{requests.length} Requests</span>
+              <div className="flex items-center justify-center sm:justify-start gap-2 bg-maroon-50 rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 border border-maroon-100">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-sorsuMaroon flex-shrink-0" />
+                <span className="text-maroon-900 font-bold text-xs sm:text-sm">{requests.length} Requests</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Document Types Grid */}
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">Available Documents</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="mb-4 sm:mb-8 overflow-x-hidden">
+          <h3 className="text-base sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Available Documents</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 w-full">
             {DOCUMENT_TYPES.map((doc) => {
               const Icon = doc.icon;
               return (
                 <div
                   key={doc.value}
-                  className="bg-white rounded-lg border border-gray-200 p-4 hover:border-maroon-300 hover:shadow-md transition-all cursor-pointer group"
+                  className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:border-maroon-300 hover:shadow-md transition-all cursor-pointer group min-w-0 overflow-hidden"
                   onClick={() => {
                     setNewDocumentType(doc.value);
                     setShowCreateForm(true);
                   }}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-maroon-50 text-sorsuMaroon transition-colors group-hover:bg-sorsuMaroon group-hover:text-white">
-                      <Icon className="h-6 w-6" />
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-maroon-50 rounded-lg flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-maroon-100 transition-colors flex-shrink-0">
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-sorsuMaroon" />
                     </div>
-                    <h4 className="font-semibold text-gray-900 text-sm group-hover:text-sorsuMaroon transition-colors">{doc.label}</h4>
+                    <h4 className="text-xs sm:text-sm font-medium text-gray-900 group-hover:text-maroon-900 transition-colors line-clamp-2 w-full">
+                      {doc.label}
+                    </h4>
                   </div>
-                  <p className="text-xs text-gray-500">Click to request</p>
                 </div>
               );
             })}
@@ -905,99 +984,182 @@ export default function StudentHomePage() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredRequests.map((request) => {
-                  const StatusIcon = STATUS_ICONS[request.status] || AlertCircle;
-                  const isActive = busyRequestId === request.id;
-                  const key = keyByRequestId[request.id] || "";
-                  const canDownload = request.status === "Ready for Pick-up" || request.status === "Completed";
+              <div className="relative overflow-x-hidden">
+                {/* Mobile Swipe Hint */}
+                <div className="sm:hidden absolute top-2 right-2 z-10 bg-sorsuMaroon/80 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  Swipe to navigate
+                </div>
+                
+                {/* Carousel Container */}
+                <div 
+                  className="relative overflow-hidden rounded-xl w-full"
+                  onMouseEnter={() => setIsAutoPlaying(false)}
+                  onMouseLeave={() => setIsAutoPlaying(true)}
+                >
+                  <div 
+                    className="flex transition-transform duration-300 ease-in-out"
+                    style={{ transform: `translateX(-${currentRequestIndex * 100}%)` }}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                  >
+                    {filteredRequests.map((request) => {
+                      const StatusIcon = STATUS_ICONS[request.status] || AlertCircle;
+                      const isActive = busyRequestId === request.id;
+                      const key = keyByRequestId[request.id] || "";
+                      const canDownload = request.status === "Ready for Pick-up" || request.status === "Completed";
 
-                  return (
-                    <div
-                      key={request.id}
-                      className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
-                    >
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">
-                              {request.document_type}
-                            </h3>
-                            <p className="text-sm text-gray-600 font-medium">
-                              Requested on {new Date(request.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                          </div>
-                          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold border ${STATUS_COLORS[request.status] || "bg-gray-100 text-gray-800 border-gray-300 shadow-sm"}`}>
-                            <StatusIcon className="h-4 w-4" />
-                            {request.status.toUpperCase()}
+                      return (
+                        <div
+                          key={request.id}
+                          className="w-full flex-shrink-0 px-1"
+                        >
+                          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 touch-pan-y min-w-0">
+                            <div className="p-3 sm:p-4 md:p-6 select-none overflow-x-hidden">
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
+                                <div className="flex-1 text-center sm:text-left">
+                                  <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-2">
+                                    {request.document_type}
+                                  </h3>
+                                  <p className="text-xs text-gray-600 font-medium">
+                                    Requested on {new Date(request.created_at).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })}
+                                  </p>
+                                </div>
+                                <div className={`inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold border ${STATUS_COLORS[request.status] || "bg-gray-100 text-gray-800 border-gray-300 shadow-sm"}`}>
+                                  <StatusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <span className="hidden sm:inline">{request.status.toUpperCase()}</span>
+                                  <span className="sm:hidden">{request.status.split(' ')[0].toUpperCase()}</span>
+                                </div>
+                              </div>
+
+                              {canDownload && (
+                                <div className="space-y-2 sm:space-y-4 border-t border-gray-100 pt-3 sm:pt-6 mt-3 sm:mt-6 transition-colors">
+                                  <div>
+                                    <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5 sm:mb-3">
+                                      Decryption Key
+                                    </label>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                      <input
+                                        type="password"
+                                        placeholder="Enter decryption key"
+                                        value={key}
+                                        onChange={(e) =>
+                                          setKeyByRequestId((prev) => ({
+                                            ...prev,
+                                            [request.id]: e.target.value,
+                                          }))
+                                        }
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="off"
+                                        spellCheck="false"
+                                        name="decryption-key-field"
+                                        data-form-type="password"
+                                        data-lp-ignore="true"
+                                        data-1p-ignore="true"
+                                        data-bwignore="true"
+                                        data-kwimpalastatus="ignore"
+                                        formNoValidate
+                                        className="flex-1 px-3 py-2 sm:px-4 sm:py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm text-sm"
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={!key || isActive}
+                                        onClick={() => handleDecryptAndDownload(request)}
+                                        className="flex items-center justify-center gap-2 rounded-lg bg-sorsuMaroon px-4 py-2 sm:px-5 sm:py-2.5 font-bold text-white hover:bg-maroon-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-maroon-900/20 active:scale-95 text-sm"
+                                      >
+                                        {isActive ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Download className="h-4 w-4" />
+                                        )}
+                                        <span className="hidden sm:inline">Download</span>
+                                        <span className="sm:hidden">Get</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleShowDecryptionKey(request.id)}
+                                      className="flex items-center justify-center gap-2 rounded-lg bg-gray-100 px-3 py-2 sm:px-4 sm:py-2.5 font-bold text-gray-700 hover:bg-gray-200 transition-all border border-gray-300 shadow-sm text-xs sm:text-sm"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      <span className="hidden sm:inline">Show Decryption Key</span>
+                                      <span className="sm:hidden">Show Key</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                        {canDownload && (
-                          <div className="space-y-4 border-t border-gray-100 pt-6 mt-6 transition-colors">
-                            <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-3">
-                                Decryption Key
-                              </label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="password"
-                                  placeholder="Enter decryption key"
-                                  value={key}
-                                  onChange={(e) =>
-                                    setKeyByRequestId((prev) => ({
-                                      ...prev,
-                                      [request.id]: e.target.value,
-                                    }))
-                                  }
-                                  autoComplete="off"
-                                  autoCorrect="off"
-                                  autoCapitalize="off"
-                                  spellCheck="false"
-                                  name="decryption-key-field"
-                                  data-form-type="password"
-                                  data-lp-ignore="true"
-                                  data-1p-ignore="true"
-                                  data-bwignore="true"
-                                  data-kwimpalastatus="ignore"
-                                  formNoValidate
-                                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:border-transparent transition-colors shadow-sm"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={!key || isActive}
-                                  onClick={() => handleDecryptAndDownload(request)}
-                                  className="flex items-center gap-2 rounded-lg bg-sorsuMaroon px-5 py-2.5 font-bold text-white hover:bg-maroon-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-maroon-900/20 active:scale-95"
-                                >
-                                  {isActive ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Download className="h-4 w-4" />
-                                  )}
-                                  Download
-                                </button>
-                              </div>
-                            </div>
-                            <div className="flex justify-center">
-                              <button
-                                type="button"
-                                onClick={() => handleShowDecryptionKey(request.id)}
-                                className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2.5 font-bold text-gray-700 hover:bg-gray-200 transition-all border border-gray-300 shadow-sm"
-                              >
-                                <FileText className="h-4 w-4" />
-                                Show Decryption Key
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                {/* Navigation Controls */}
+                {filteredRequests.length > 1 && (
+                  <>
+                    {/* Previous Button */}
+                    <button
+                      onClick={goToPreviousRequest}
+                      className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white shadow-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all duration-200 sm:duration-200"
+                      aria-label="Previous request"
+                    >
+                      <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+                    </button>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={goToNextRequest}
+                      className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white shadow-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all duration-200 sm:duration-200"
+                      aria-label="Next request"
+                    >
+                      <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+                    </button>
+                  </>
+                )}
+
+                {/* Carousel Indicators */}
+                {filteredRequests.length > 1 && (
+                  <div className="flex justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
+                    {filteredRequests.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => goToRequest(index)}
+                        className={`h-2 sm:h-2 rounded-full transition-all duration-200 active:scale-110 ${
+                          index === currentRequestIndex
+                            ? "w-6 sm:w-8 bg-sorsuMaroon"
+                            : "w-2 sm:w-2 bg-gray-300 hover:bg-gray-400 active:bg-gray-500"
+                        }`}
+                        aria-label={`Go to request ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Request Counter */}
+                <div className="text-center mt-2 sm:mt-3">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium">
+                    {currentRequestIndex + 1} of {filteredRequests.length} requests
+                  </p>
+                  {filteredRequests.length > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-1.5 sm:mt-2">
+                      <div className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full transition-colors duration-200 ${
+                        isAutoPlaying ? 'bg-green-500' : 'bg-gray-300'
+                      }`} />
+                      <span className="text-[10px] sm:text-xs text-gray-400">
+                        {isAutoPlaying ? 'Auto-playing' : 'Paused'}
+                      </span>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
             )}
           </div>
