@@ -19,6 +19,7 @@ export default function StudentLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const navItems = [
     { href: "/student/home", label: "Home", icon: Home },
@@ -31,8 +32,45 @@ export default function StudentLayout({
   };
 
   const confirmSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+    if (isLoggingOut) {
+      console.log('Logout already in progress, ignoring click');
+      return;
+    }
+    
+    setIsLoggingOut(true);
+    console.log('Logout confirmation clicked - starting logout process');
+    try {
+      // Call our logout API to properly deactivate the session
+      console.log('Calling logout API...');
+      const response = await fetch('/api/logout', { 
+        method: 'POST',
+        credentials: 'include' // Ensure cookies are sent
+      });
+      console.log('Logout API response:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Logout API error:', errorData);
+      } else {
+        const responseData = await response.json();
+        console.log('Logout API response data:', responseData);
+      }
+      
+      // Add a delay to ensure session is fully cleared before redirect
+      console.log('Waiting for session to clear...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('Redirecting to login...');
+      router.push("/login");
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback to basic logout
+      console.log('Falling back to basic Supabase logout');
+      await supabase.auth.signOut();
+      router.push("/login");
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   // Fetch unread notifications count

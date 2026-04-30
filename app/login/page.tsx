@@ -1,19 +1,54 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
-import { Eye, EyeOff, Lock, User, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, User, Loader2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import PWAInstall from "@/components/ui/PWAInstall";
 
-export default function LoginPage() {
+function LoginPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConcurrentLoginModal, setShowConcurrentLoginModal] = useState(false);
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'concurrent_login') {
+      // Show modal instead of inline error
+      setShowConcurrentLoginModal(true);
+      // Clear any existing auth state to prevent auto-login
+      supabase.auth.signOut().catch(() => {
+        // Ignore errors during cleanup
+      });
+      
+      // Also clear the user's sessions from database
+      clearUserSessions();
+    }
+  }, [searchParams]);
+
+  // Function to clear user sessions
+  const clearUserSessions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        console.log('Clearing all sessions for user due to concurrent login error:', user.id);
+        const response = await fetch('/api/logout', { method: 'POST' });
+        if (response.ok) {
+          console.log('Sessions cleared successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing sessions:', error);
+    }
+  };
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -84,9 +119,11 @@ export default function LoginPage() {
         <div className="p-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-6">Login to your account</h2>
 
-          {error && (
-            <div className="mb-4 p-3 bg-maroon-100 border-l-4 border-maroon-500 text-maroon-700 text-sm">
-              {error}
+          {error && !error.includes('another device') && (
+            <div className="mb-4 p-3 border-l-4 text-sm bg-maroon-100 border-maroon-500 text-maroon-700">
+              <div className="flex items-start">
+                <span>{error}</span>
+              </div>
             </div>
           )}
 
@@ -192,6 +229,76 @@ export default function LoginPage() {
       <div className="mt-4 flex justify-center">
         <PWAInstall />
       </div>
+
+      {/* Concurrent Login Modal */}
+      {showConcurrentLoginModal && (
+        <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border-t-8 border-sorsuMaroon transform transition-all">
+            {/* SorSU Logo and Branding */}
+            <div className="p-6 text-center border-b border-gray-100">
+              <Image
+                src="/images/sorsu-logo.png"
+                alt="SorSU Logo"
+                width={96}
+                height={96}
+                className="w-24 h-24 mx-auto drop-shadow-md object-contain"
+              />
+              <h1 className="mt-3 text-xl font-bold text-sorsuMaroon">
+                SorSU Document Request System
+              </h1>
+              <p className="text-gray-600 text-sm">Sorsogon State University</p>
+              <div className="mt-2 inline-flex items-center px-3 py-1 bg-red-100 border border-red-300 rounded-full">
+                <span className="relative flex h-2 w-2 mr-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-red-700 uppercase tracking-wider animate-pulse">
+                  WARNING
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Login Blocked</h3>
+                  <p className="text-sm text-gray-600">Concurrent Login Detected</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700 leading-relaxed">
+                  Your account is logged in to another device. Please logout first before logging in again. If the other device isn&apos;t yours, please report it to the registrar to change your password.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowConcurrentLoginModal(false);
+                    router.push('/login');
+                  }}
+                  className="px-6 py-2 bg-sorsuMaroon text-white font-medium rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sorsuMaroon focus:ring-offset-2"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

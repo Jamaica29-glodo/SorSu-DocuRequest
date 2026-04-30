@@ -548,8 +548,34 @@ export default function RegistrarDashboardPage() {
   };
 
   const confirmSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+    console.log('Registrar logout confirmation clicked - starting logout process');
+    try {
+      // Call our logout API to properly deactivate the session
+      console.log('Calling logout API...');
+      const response = await fetch('/api/logout', { 
+        method: 'POST',
+        credentials: 'include' // Ensure cookies are sent
+      });
+      console.log('Logout API response:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Logout API error:', errorData);
+      }
+      
+      // Add a delay to ensure session is fully cleared before redirect
+      console.log('Waiting for session to clear...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('Redirecting to login...');
+      router.push("/login");
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback to basic logout
+      console.log('Falling back to basic Supabase logout');
+      await supabase.auth.signOut();
+      router.push("/login");
+    }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
